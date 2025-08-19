@@ -1,0 +1,14 @@
+<aside class="sidebar" id="sidebar">
+  <div class="brand">WSMS</div>
+  <nav class="nav">
+    <a href="{{ url_for('main.index') }}">
+      <i class="fas fa-home"></i> Dashboard
+    </a>
+    <a href="{{ url_for('customers.index') }}">
+      <i class="fas fa-users"></i> Customers
+    </a>
+    <a href="{{ url_for('bills.index') }}">
+      <i class="fas fa-file-invoice-dollar"></i> Bills
+    </a>
+  </nav>
+</aside>

@@ -1,0 +1,140 @@
+/* ================== WSMS - Styles (FULL) ================== */
+:root { --sidebar-width: 240px; }
+* { box-sizing: border-box; }
+body { background:#f6f7fb; margin:0; }
+
+.app { display:flex; min-height:100vh; }
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  width: var(--sidebar-width);
+  background:#374151;   /* modern gray */
+  color:#fff;
+  padding:1rem;
+  position: sticky;
+  top:0;
+  align-self:flex-start;
+  min-height:100vh;
+
+  flex: 0 0 var(--sidebar-width);
+  transition: margin-left .25s ease;
+  will-change: margin-left;
+  z-index: 1000;
+}
+
+
+
+/* Sidebar content */
+.sidebar .brand { font-weight:700; letter-spacing:.5px; margin-bottom:1rem; }
+
+.sidebar .nav a{
+  display: flex;
+  align-items: center;
+  gap: 1rem;                
+  padding: .60rem 1rem;       
+  border-radius: .5rem;
+  color: #e5e7eb;
+  text-decoration: none;
+ 
+}
+.sidebar .nav a i{
+  font-size: 18px;             
+  width: 22px;                
+  text-align: center;
+  color: #cbd5e1;
+}
+.sidebar .nav a.active, .sidebar .nav a:hover { background:#1f2937; color:#fff; }
+.sidebar .nav { display:flex; flex-direction:column; gap:.75rem; }
+
+/* ---------- Main column ---------- */
+.main { 
+  flex:1; 
+  display:flex; 
+  flex-direction:column; 
+  min-width:0; /* prevents overflow when collapsed */
+}
+
+/* ---------- Header ---------- */
+/* ---------- Header ---------- */
+.header {
+  background: linear-gradient(135deg, #2eaadf, #0e78e9); /* sky blue gradient */
+  border-bottom: 1px solid #e5e7eb;
+  padding: .6rem 1rem;
+  display: flex;
+  height: 60px;
+  align-items: center;
+  justify-content: space-between;
+  color: #fff;
+}
+.header .title { font-weight:600; }
+.header .fa-bars { cursor:pointer; }
+
+
+/* ---------- Footer ---------- */
+.footer {
+  background:#ffffff; border-top:1px solid #e5e7eb;
+  padding:.6rem 1rem; text-align:center;
+}
+
+/* ---------- Cards / helpers ---------- */
+.container { padding:1rem; }
+.card { background:#fff; border:1px solid #e5e7eb; border-radius:.75rem; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+.card .card-header { padding:.75rem 1rem; border-bottom:1px solid #e5e7eb; background:#fff; border-radius:.75rem .75rem 0 0; }
+.card .card-body { padding:1rem; }
+
+/* ================== Sidebar Toggle ================== */
+/* Collapse: push sidebar off-canvas (works with flex) */
+body.is-collapsed .sidebar {
+  margin-left: calc(-1 * var(--sidebar-width));
+}
+
+/* ---------- Overlay for mobile ---------- */
+/* Created dynamically by JS: <div id="sidebarOverlay"></div> */
+#sidebarOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.4);
+  z-index: 900;            /* below .sidebar (1000) */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+}
+body.overlay-active #sidebarOverlay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ---------- Mobile behavior ---------- */
+@media (max-width: 992px) {
+  /* Sidebar overlays content on mobile */
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+  }
+}
+
+
+:root { --header-h: 60px; } /* your header is 60px tall */
+
+/* Always allow the sidebar to scroll */
+.sidebar{
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* smooth iOS scroll */
+}
+
+/* Mobile/tablet: place sidebar under the header and size it to viewport */
+@media (max-width: 992px){
+  .sidebar{
+    position: fixed;
+    left: 0;
+    top: var(--header-h);                          /* NOT 0 */
+    height: calc(100vh - var(--header-h));        /* leave space for header */
+    /* Better on modern mobile browsers (optional fallback above remains) */
+  }
+  @supports (height: 100dvh){
+    .sidebar{ height: calc(100dvh - var(--header-h)); }
+  }
+}
+
