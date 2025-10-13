@@ -1,61 +1,82 @@
-/* ================== WSMS - Styles (FULL) ================== */
-:root { --sidebar-width: 240px; }
+/* =========================================================
+   WSMS - Styles (Organized)
+   ========================================================= */
+
+/* ========== Variables ========== */
+:root {
+  --sidebar-width: 220px;
+  --header-h: 60px;            /* your header is 60px tall */
+  --wsms-primary: #2eaadf;     /* project primary color */
+}
+
+/* ========== Base ========== */
 * { box-sizing: border-box; }
-body { background:#f6f7fb; margin:0; }
+body { background: #f6f7fb; margin: 0; }
 
-.app { display:flex; min-height:100vh; }
+/* ========== App / Layout ========== */
+.app { display: flex; min-height: 100vh; }
+.main { 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+  min-width: 0;               /* prevents overflow when collapsed */
+}
 
-/* ---------- Sidebar ---------- */
+/* ========== Sidebar ========== */
 .sidebar {
   width: var(--sidebar-width);
-  background:#374151;   /* modern gray */
-  color:#fff;
-  padding:1rem;
-  position: sticky;
-  top:0;
-  align-self:flex-start;
-  min-height:100vh;
-
   flex: 0 0 var(--sidebar-width);
+  background: #374151;        /* modern gray */
+  color: #fff;
+  padding: 1rem;
+
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  min-height: 100vh;
+
   transition: margin-left .25s ease;
   will-change: margin-left;
   z-index: 1000;
+
+  /* always scrollable */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* smooth iOS scroll */
 }
 
-
-
 /* Sidebar content */
-.sidebar .brand { font-weight:700; letter-spacing:.5px; margin-bottom:1rem; }
-
-.sidebar .nav a{
+.sidebar .brand { 
+  font-weight: 700; 
+  letter-spacing: .5px; 
+  margin-bottom: 1rem; 
+}
+.sidebar .nav { 
+  display: flex; 
+  flex-direction: column; 
+  gap: .75rem; 
+}
+.sidebar .nav a {
   display: flex;
   align-items: center;
-  gap: 1rem;                
-  padding: .60rem 1rem;       
+  gap: 1rem;
+  padding: .60rem 1rem;
   border-radius: .5rem;
   color: #e5e7eb;
   text-decoration: none;
- 
 }
-.sidebar .nav a i{
-  font-size: 18px;             
-  width: 22px;                
+.sidebar .nav a i {
+  font-size: 18px;
+  width: 22px;
   text-align: center;
   color: #cbd5e1;
 }
-.sidebar .nav a.active, .sidebar .nav a:hover { background:#1f2937; color:#fff; }
-.sidebar .nav { display:flex; flex-direction:column; gap:.75rem; }
-
-/* ---------- Main column ---------- */
-.main { 
-  flex:1; 
-  display:flex; 
-  flex-direction:column; 
-  min-width:0; /* prevents overflow when collapsed */
+.sidebar .nav a.active, 
+.sidebar .nav a:hover { 
+  background: #1f2937; 
+  color: #fff; 
 }
 
-/* ---------- Header ---------- */
-/* ---------- Header ---------- */
+/* ========== Header ========== */
 .header {
   background: linear-gradient(135deg, #2eaadf, #0e78e9); /* sky blue gradient */
   border-bottom: 1px solid #e5e7eb;
@@ -66,29 +87,39 @@ body { background:#f6f7fb; margin:0; }
   justify-content: space-between;
   color: #fff;
 }
-.header .title { font-weight:600; }
-.header .fa-bars { cursor:pointer; }
+.header .title { font-weight: 600; }
+.header .fa-bars { cursor: pointer; }
 
-
-/* ---------- Footer ---------- */
+/* ========== Footer ========== */
 .footer {
-  background:#ffffff; border-top:1px solid #e5e7eb;
-  padding:.6rem 1rem; text-align:center;
+  background: #ffffff; 
+  border-top: 1px solid #e5e7eb;
+  padding: .6rem 1rem; 
+  text-align: center;
 }
 
-/* ---------- Cards / helpers ---------- */
-.container { padding:1rem; }
-.card { background:#fff; border:1px solid #e5e7eb; border-radius:.75rem; box-shadow:0 1px 2px rgba(0,0,0,.03); }
-.card .card-header { padding:.75rem 1rem; border-bottom:1px solid #e5e7eb; background:#fff; border-radius:.75rem .75rem 0 0; }
-.card .card-body { padding:1rem; }
+/* ========== Cards / helpers ========== */
+.container { padding: 1rem; }
+.card { 
+  background: #fff; 
+  border: 1px solid #e5e7eb; 
+  border-radius: .75rem; 
+  box-shadow: 0 1px 2px rgba(0,0,0,.03); 
+}
+.card .card-header { 
+  padding: .75rem 1rem; 
+  border-bottom: 1px solid #e5e7eb; 
+  background: #fff; 
+  border-radius: .75rem .75rem 0 0; 
+}
+.card .card-body { padding: 1rem; }
 
-/* ================== Sidebar Toggle ================== */
-/* Collapse: push sidebar off-canvas (works with flex) */
+/* ========== Sidebar Toggle ========== */
 body.is-collapsed .sidebar {
   margin-left: calc(-1 * var(--sidebar-width));
 }
 
-/* ---------- Overlay for mobile ---------- */
+/* ========== Overlay for mobile ========== */
 /* Created dynamically by JS: <div id="sidebarOverlay"></div> */
 #sidebarOverlay {
   position: fixed;
@@ -104,37 +135,157 @@ body.overlay-active #sidebarOverlay {
   pointer-events: auto;
 }
 
-/* ---------- Mobile behavior ---------- */
+/* ========== Modals (compact, no scroll) ========== */
+.modal-dialog {
+  max-width: 620px;                 /* narrower */
+}
+.modal-content {
+  max-height: none;                 /* allow full height */
+  border-radius: 12px;
+}
+.modal-header, 
+.modal-footer {                     /* tighter paddings */
+  padding: .6rem .9rem;
+}
+.modal-body {
+  padding: .75rem .9rem;
+  overflow: visible;                /* no scroll inside */
+}
+
+/* ========== Forms (compact) ========== */
+.form-label {
+  margin-bottom: .25rem;
+  font-size: .9rem;                 /* smaller labels */
+}
+.form-control.form-control-sm,
+.form-select.form-select-sm {
+  height: calc(1.5em + .5rem + 2px);
+}
+
+/* ========== Buttons (Project Primary Theme) ========== */
+.btn-primary {
+  background-color: var(--wsms-primary) !important;
+  border-color: var(--wsms-primary) !important;
+  color: #fff !important;
+}
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: #219acb !important;  /* darker shade on hover */
+  border-color: #219acb !important;
+}
+.btn-outline-primary {
+  color: var(--wsms-primary) !important;
+  border-color: var(--wsms-primary) !important;
+}
+.btn-outline-primary:hover {
+  background-color: var(--wsms-primary) !important;
+  color: #fff !important;
+}
+.btn-secondary {
+  background-color: #6c757d;
+  border-color: #6c757d;
+}
+.btn-secondary:hover {
+  background-color: #5a6268;
+  border-color: #545b62;
+}
+
+/* ========== Responsive Table Fix (Stay in One Row) ========== */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;            /* allow horizontal scroll */
+  -webkit-overflow-scrolling: touch; /* smooth on iOS */
+  border-radius: 6px;
+}
+
+.table {
+  min-width: 850px;            /* prevent columns from wrapping */
+  white-space: nowrap;         /* keep everything in one line */
+}
+
+.table th,
+.table td {
+  vertical-align: middle;
+}
+
+
+/* ========== Action Buttons (Edit / Delete) ========== */
+
+/* Edit button (same as primary color) */
+.btn-edit {
+  background-color: var(--wsms-primary) !important;
+  border-color: var(--wsms-primary) !important;
+  color: #fff !important;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+}
+.btn-edit:hover {
+  background-color: #219acb !important;   /* slightly darker on hover */
+  border-color: #219acb !important;
+}
+
+/* Delete button (red) */
+.btn-delete {
+  background-color: #dc3545 !important;   /* Bootstrap danger red */
+  border-color: #dc3545 !important;
+  color: #fff !important;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+}
+.btn-delete:hover {
+  background-color: #bb2d3b !important;
+  border-color: #b02a37 !important;
+}
+
+/* ---------- Filter Bar ---------- */
+.filter-bar .filter-header {
+  background: var(--wsms-primary);  /* same as New Source button */
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.3s ease;
+  margin-bottom: 40px;
+  margin-top: 30px;
+}
+
+.filter-bar .filter-header:hover {
+  background: #219acb; /* slightly darker on hover */
+}
+
+#filtersCollapse {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+#filter-chevron {
+  transition: transform 0.25s ease;
+}
+
+.page-size{
+  margin-top: 20px;
+  margin-bottom: 30px;
+}
+
+
+
+
+/* ========== Responsive (Mobile/Tablet) ========== */
+/* Sidebar overlays content on mobile and sits under header */
 @media (max-width: 992px) {
-  /* Sidebar overlays content on mobile */
   .sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    height: 100vh;
-  }
-}
-
-
-:root { --header-h: 60px; } /* your header is 60px tall */
-
-/* Always allow the sidebar to scroll */
-.sidebar{
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch; /* smooth iOS scroll */
-}
-
-/* Mobile/tablet: place sidebar under the header and size it to viewport */
-@media (max-width: 992px){
-  .sidebar{
     position: fixed;
     left: 0;
     top: var(--header-h);                          /* NOT 0 */
     height: calc(100vh - var(--header-h));        /* leave space for header */
-    /* Better on modern mobile browsers (optional fallback above remains) */
   }
-  @supports (height: 100dvh){
-    .sidebar{ height: calc(100dvh - var(--header-h)); }
+  @supports (height: 100dvh) {
+    .sidebar { height: calc(100dvh - var(--header-h)); }
   }
 }
-

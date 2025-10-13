@@ -1,0 +1,395 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Water Sources{% endblock %}
+
+{% block content %}
+  <div class="container-fluid py-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <h4 class="mb-0">Water Sources</h4>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#sourceModal" data-mode="create">
+        <i class="fa fa-plus me-1"></i> New Source
+      </button>
+    </div>
+
+    {# Flash Messages #}
+    {% with messages=get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {# ---------- Collapsible Filter Bar (auto-apply) ---------- #}
+    {% set active_count =
+        (1 if request.args.get('source_type') else 0)
+      + (1 if request.args.get('status') else 0)
+      + (1 if request.args.get('location') else 0)
+    %}
+
+    <div class="filter-bar mb-3">
+      <div class="filter-header d-flex justify-content-between align-items-center"
+           data-bs-toggle="collapse"
+           data-bs-target="#filtersCollapse"
+           aria-expanded="{{ 'true' if active_count > 0 else 'false' }}"
+           aria-controls="filtersCollapse"
+           style="cursor:pointer">
+        <div class="d-flex align-items-center gap-2 text-white">
+          <i class="fa fa-filter"></i>
+          <strong>Filter Options</strong>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 text-white">
+          <span><span id="filter-active-count">{{ active_count }}</span> active</span>
+          <i class="fa fa-chevron-down" id="filter-chevron"></i>
+        </div>
+      </div>
+
+      <div id="filtersCollapse" class="collapse {% if active_count > 0 %}show{% endif %}">
+        <form id="filtersForm" method="GET" action="{{ url_for('source.list_sources') }}" class="row g-2 p-3 align-items-end">
+          <div class="col-md-3 col-sm-6">
+            <label class="form-label mb-1">Source Type</label>
+            <select name="source_type" class="form-select form-select-sm">
+              <option value="">All</option>
+              <option value="Well"      {{ 'selected' if request.args.get('source_type')=='Well' else '' }}>Well</option>
+              <option value="Borehole"  {{ 'selected' if request.args.get('source_type')=='Borehole' else '' }}>Borehole</option>
+              <option value="Dam"       {{ 'selected' if request.args.get('source_type')=='Dam' else '' }}>Dam</option>
+              <option value="River"     {{ 'selected' if request.args.get('source_type')=='River' else '' }}>River</option>
+            </select>
+          </div>
+
+          <div class="col-md-3 col-sm-6">
+            <label class="form-label mb-1">Status</label>
+            <select name="status" class="form-select form-select-sm">
+              <option value="">All</option>
+              <option value="Active"       {{ 'selected' if request.args.get('status')=='Active' else '' }}>Active</option>
+              <option value="Inactive"     {{ 'selected' if request.args.get('status')=='Inactive' else '' }}>Inactive</option>
+              <option value="Maintenance"  {{ 'selected' if request.args.get('status')=='Maintenance' else '' }}>Maintenance</option>
+            </select>
+          </div>
+
+          <div class="col-md-3 col-sm-6">
+            <label class="form-label mb-1">Location</label>
+            <input id="locationInput" type="text" name="location" class="form-control form-control-sm"
+                   placeholder="Search by location"
+                   value="{{ request.args.get('location', '') }}">
+          </div>
+
+          <div class="col-md-3 col-sm-6 text-end">
+            <a href="{{ url_for('source.list_sources') }}" class="btn btn-secondary btn-sm">
+              <i class="fa fa-rotate-right me-1"></i> Reset
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+    {# ---------- End Filter Bar ---------- #}
+
+    {# ---------- Build preserved querystring once for export links ---------- #}
+    {% set qs = namespace(pairs=[]) %}
+    {% for k, v in request.args.items() %}
+      {% set _ = qs.pairs.append(k ~ '=' ~ (v|urlencode)) %}
+    {% endfor %}
+    {% set preserved = qs.pairs|join('&') %}
+
+    <!-- Download Buttons (left) -->
+    <div class="d-flex justify-content-start align-items-center mb-2 gap-2">
+      <a class="btn btn-primary btn-sm"
+         href="{{ url_for('source.export_csv') }}{% if preserved %}?{{ preserved }}{% endif %}">
+        <i class="fa fa-file-csv me-1"></i> Download CSV
+      </a>
+      <a class="btn btn-primary btn-sm"
+         href="{{ url_for('source.export_xlsx') }}{% if preserved %}?{{ preserved }}{% endif %}">
+        <i class="fa fa-file-excel me-1"></i> Download Excel
+      </a>
+    </div>
+
+    {# --- Page size selector (top of table, input only) --- #}
+    <div class="mb-2 page-size">
+      <form method="get" class="d-inline">
+        {% for k, v in request.args.items() if k not in ['per_page', 'page'] %}
+          <input type="hidden" name="{{ k }}" value="{{ v }}">
+        {% endfor %}
+        <select name="per_page"
+                class="form-select form-select-sm w-auto d-inline-block"
+                onchange="this.form.submit()"
+                aria-label="Rows per page">
+          {% for n in allowed_per_page %}
+            <option value="{{ n }}" {{ 'selected' if per_page == n else '' }}>{{ n }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+
+    <!-- Responsive Table -->
+    <div class="table-responsive">
+      <table class="table table-striped table-hover align-middle table-sm">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Location</th>
+            <th>Capacity (m³/day)</th>
+            <th>Status</th>
+            <th class="d-none d-md-table-cell">Last prod. date</th>
+            <th class="d-none d-md-table-cell">Last volume (m³)</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sources %}
+            <tr>
+              <td>{{ s.id }}</td>
+              <td class="text-truncate" style="max-width: 180px">{{ s.source_name }}</td>
+              <td>{{ s.source_type }}</td>
+              <td class="text-truncate" style="max-width: 180px">{{ s.location }}</td>
+              <td>{{ s.capacity_m3_day or '' }}</td>
+              <td>{{ s.status }}</td>
+              <td class="d-none d-md-table-cell">{{ s.last_production_date or '' }}</td>
+              <td class="d-none d-md-table-cell">{{ s.last_volume_m3 or '' }}</td>
+              <td class="text-end text-nowrap">
+                <button class="btn btn-edit"
+                        data-bs-toggle="modal" data-bs-target="#sourceModal"
+                        data-mode="edit"
+                        data-id="{{ s.id }}"
+                        data-source_name="{{ s.source_name }}"
+                        data-source_type="{{ s.source_type }}"
+                        data-location="{{ s.location }}"
+                        data-capacity_m3_day="{{ s.capacity_m3_day or '' }}"
+                        data-status="{{ s.status }}"
+                        data-last_production_date="{{ s.last_production_date or '' }}"
+                        data-last_volume_m3="{{ s.last_volume_m3 or '' }}"
+                        data-remarks="{{ s.remarks or '' }}">
+                  Edit
+                </button>
+
+                <form method="POST" action="{{ url_for('source.delete_source', source_id=s.id) }}"
+                      class="d-inline delete-form">
+                  <button type="button" class="btn btn-delete btn-confirm-delete">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="9" class="text-center text-muted">No sources yet</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# --- Pager (bottom only) --- #}
+    {% if pagination.pages > 1 %}
+    <nav aria-label="Pagination" class="mt-2">
+      <ul class="pagination pagination-sm justify-content-end mb-0">
+        {# Build preserved querystring excluding page/per_page for links #}
+        {% set keep = namespace(pairs=[]) %}
+        {% for k, v in request.args.items() if k not in ['page', 'per_page'] %}
+          {% set _ = keep.pairs.append(k ~ '=' ~ (v|urlencode)) %}
+        {% endfor %}
+        {% set keep_qs = keep.pairs|join('&') %}
+
+        {% macro page_href(p) -%}
+          {{ url_for('source.list_sources') }}?{%
+            if keep_qs %}{{ keep_qs }}&{% endif %}page={{ p }}&per_page={{ per_page }}
+        {%- endmacro %}
+
+        <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+          <a class="page-link" href="{{ page_href(1) }}">First</a>
+        </li>
+        <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+          <a class="page-link" href="{{ page_href(pagination.prev_num or 1) }}">&laquo;</a>
+        </li>
+
+        {% set start = max(1, pagination.page - 2) %}
+        {% set end = min(pagination.pages, pagination.page + 2) %}
+        {% for p in range(start, end + 1) %}
+          <li class="page-item {{ 'active' if p == pagination.page }}">
+            <a class="page-link" href="{{ page_href(p) }}">{{ p }}</a>
+          </li>
+        {% endfor %}
+
+        <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+          <a class="page-link" href="{{ page_href(pagination.next_num or pagination.pages) }}">&raquo;</a>
+        </li>
+        <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+          <a class="page-link" href="{{ page_href(pagination.pages) }}">Last</a>
+        </li>
+      </ul>
+    </nav>
+    {% endif %}
+  </div>
+
+  <!-- Compact Modal (Create/Edit) -->
+  <div class="modal fade" id="sourceModal" tabindex="-1" aria-labelledby="sourceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form id="sourceForm" method="POST" action="{{ url_for('source.create_source') }}">
+          <div class="modal-header">
+            <h5 class="modal-title" id="sourceModalLabel">New Source</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          <div class="modal-body">
+            <div class="row g-2">
+              <div class="col-md-6">
+                <label class="form-label">Name</label>
+                <input name="source_name" class="form-control form-control-sm" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Type</label>
+                <select name="source_type" class="form-select form-select-sm" required>
+                  <option value="Well">Well</option>
+                  <option value="Borehole">Borehole</option>
+                  <option value="Dam">Dam</option>
+                  <option value="River">River</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Location</label>
+                <input name="location" class="form-control form-control-sm" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Capacity (m³/day)</label>
+                <input name="capacity_m3_day" type="number" step="0.01" class="form-control form-control-sm">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select form-select-sm">
+                  <option value="Active" selected>Active</option>
+                  <option value="Inactive">Inactive</option>
+                  <option value="Maintenance">Maintenance</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Last production date</label>
+                <input name="last_production_date" type="date" class="form-control form-control-sm">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Last volume (m³)</label>
+                <input name="last_volume_m3" type="number" step="0.01" class="form-control form-control-sm">
+              </div>
+              <div class="col-12">
+                <label class="form-label">Remarks</label>
+                <textarea name="remarks" rows="2" class="form-control form-control-sm"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-primary btn-sm" type="submit">Save</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ super() }}
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      /* ---------- Modal: Create / Edit ---------- */
+      const modalEl = document.getElementById('sourceModal');
+      modalEl.addEventListener('show.bs.modal', (event) => {
+        const btn = event.relatedTarget;
+        const form = document.getElementById('sourceForm');
+        const title = document.getElementById('sourceModalLabel');
+        form.reset();
+
+        if (btn?.dataset.mode === 'edit') {
+          title.textContent = 'Edit Source';
+          const id = btn.dataset.id;
+          form.action = "{{ url_for('source.edit_source', source_id=0) }}".replace('0', id);
+
+          form.source_name.value = btn.dataset.source_name || '';
+          form.source_type.value = btn.dataset.source_type || 'Well';
+          form.location.value = btn.dataset.location || '';
+          form.capacity_m3_day.value = btn.dataset.capacity_m3_day || '';
+          form.status.value = btn.dataset.status || 'Active';
+          form.last_production_date.value = btn.dataset.last_production_date || '';
+          form.last_volume_m3.value = btn.dataset.last_volume_m3 || '';
+          form.remarks.value = btn.dataset.remarks || '';
+        } else {
+          title.textContent = 'New Source';
+          form.action = "{{ url_for('source.create_source') }}";
+        }
+      });
+
+      /* ---------- SweetAlert2 Delete Confirm ---------- */
+      document.querySelectorAll(".btn-confirm-delete").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const form = btn.closest(".delete-form");
+          Swal.fire({
+            title: "Are you sure?",
+            text: "This action cannot be undone!",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#2eaadf",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Yes, delete it!",
+            cancelButtonText: "Cancel"
+          }).then((result) => {
+            if (result.isConfirmed) form.submit();
+          });
+        });
+      });
+
+      /* ---------- Filters: auto-apply + active count + chevron ---------- */
+      const collapseEl = document.getElementById('filtersCollapse');
+      const chevron = document.getElementById('filter-chevron');
+      const countEl = document.getElementById('filter-active-count');
+      const filtersForm = document.getElementById('filtersForm');
+      const locationInput = document.getElementById('locationInput');
+
+      function debounce(fn, ms) {
+        let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), ms); };
+      }
+
+      function activeCount() {
+        const params = new FormData(filtersForm);
+        let c = 0;
+        if ((params.get('source_type') || '').trim()) c++;
+        if ((params.get('status') || '').trim()) c++;
+        if ((params.get('location') || '').trim()) c++;
+        return c;
+      }
+      function updateCount() { countEl.textContent = activeCount(); }
+
+      // auto submit on select change
+      filtersForm.querySelectorAll('select').forEach(sel => {
+        sel.addEventListener('change', () => {
+          updateCount();
+          filtersForm.submit();
+        });
+      });
+
+      // auto submit on typing (debounced)
+      const submitLocation = debounce(() => {
+        updateCount();
+        filtersForm.submit();
+      }, 400);
+      locationInput.addEventListener('input', submitLocation);
+      locationInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          updateCount();
+          filtersForm.submit();
+        }
+      });
+
+      // chevron rotation
+      collapseEl.addEventListener('shown.bs.collapse', () => { chevron.style.transform = 'rotate(180deg)'; });
+      collapseEl.addEventListener('hidden.bs.collapse', () => { chevron.style.transform = 'rotate(0deg)'; });
+      if (collapseEl.classList.contains('show')) { chevron.style.transform = 'rotate(180deg)'; }
+    });
+  </script>
+{% endblock %}

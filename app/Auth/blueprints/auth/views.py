@@ -30,6 +30,12 @@ def role_required(*roles):
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
+    if session.get("user_id"):
+        role = session.get("role")
+        if role == "Admin":
+            return redirect(url_for("main.admin_dashboard"))
+        return redirect(url_for("user.dashboard"))
+
     if request.method == "POST":
         username = (request.form.get("username") or "").strip()
         password = request.form.get("password") or ""
@@ -43,17 +49,15 @@ def login():
             session["role"] = user.role
             flash("Login successful!", "success")
 
-            # Role-based redirect — make sure these endpoints exist:
-            #   main.admin_dashboard   → /admin/dashboard
-            #   user.dashboard         → /user/dashboard
+            # Redirect by role
             if role == "Admin":
                 return redirect(url_for("main.admin_dashboard"))
             return redirect(url_for("user.dashboard"))
 
         flash("Invalid username, password, or role!", "danger")
 
-    # Template path expects: app/Auth/blueprints/auth/templates/auth/login.html
     return render_template("auth/login.html")
+
 
 @auth_bp.route("/logout")
 def logout():

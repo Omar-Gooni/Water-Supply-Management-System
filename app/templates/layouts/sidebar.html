@@ -4,11 +4,17 @@
     <a href="{{ url_for('main.admin_dashboard') }}">
       <i class="fas fa-home"></i> Dashboard
     </a>
+    <a href="{{ url_for('source.list_sources') }}">
+      <i class="fas fa-water"></i> Sources
     <a href="{{ url_for('customers.index') }}">
       <i class="fas fa-users"></i> Customers
     </a>
     <a href="{{ url_for('bills.index') }}">
       <i class="fas fa-file-invoice-dollar"></i> Bills
     </a>
+   <a href="{{ url_for('auth.logout') }}">
+    <i class="fas fa-sign-out-alt"></i>
+    Logout
+   </a>
   </nav>
 </aside>
