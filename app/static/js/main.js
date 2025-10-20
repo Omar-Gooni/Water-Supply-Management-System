@@ -123,3 +123,43 @@ document.addEventListener('DOMContentLoaded', function () {
   initState();
   console.log('[WSMS] Toggle ready. Try: window.__wsmsToggle() in console');
 });
+
+
+// ================== Sidebar Submenu Toggle ==================
+document.addEventListener("DOMContentLoaded", function() {
+  
+  // Find all sidebar submenu toggles
+  const toggles = document.querySelectorAll(".sidebar .js-submenu-toggle");
+
+  toggles.forEach(toggle => {
+    toggle.addEventListener("click", function(event) {
+      
+      // Stop the link from navigating (since href="#")
+      event.preventDefault(); 
+      
+      // Get the submenu, which is the *next element*
+      const submenu = this.nextElementSibling;
+
+      if (submenu && submenu.classList.contains("submenu")) {
+        
+        // Check if the submenu is already open
+        const isOpen = submenu.classList.contains("open");
+        
+        if (isOpen) {
+          // --- Close it ---
+          submenu.classList.remove("open");
+          this.classList.remove("open"); // For the arrow
+          submenu.style.maxHeight = "0";
+        } else {
+          // --- Open it ---
+          submenu.classList.add("open");
+          this.classList.add("open"); // For the arrow
+          
+          // Set max-height to the content's full height
+          submenu.style.maxHeight = submenu.scrollHeight + "px";
+        }
+      }
+    });
+  });
+
+});

@@ -273,6 +273,51 @@ body.overlay-active #sidebarOverlay {
   margin-bottom: 30px;
 }
 
+/* =========================================================
+   ADD-ON: Collapsible Submenu Styles
+   ========================================================= */
+
+.sidebar .nav a.has-submenu {
+  justify-content: space-between;
+  cursor: pointer;
+}
+.sidebar .nav a.has-submenu .nav-arrow {
+  font-size: 14px;
+  color: #9ca3af; 
+  transition: transform 0.25s ease;
+  flex-shrink: 0;
+}
+.sidebar .nav a.has-submenu.open .nav-arrow {
+  transform: rotate(-180deg);
+}
+.submenu {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: .25rem; 
+  border-radius: .5rem;
+  padding: 0 .5rem; 
+  margin-top: calc(-1 * var(--gap, .75rem));
+}
+.submenu.open {
+  padding-top: .5rem;
+  padding-bottom: .5rem;
+
+  margin-top: 0; 
+}
+
+/* 6. The individual links (<a>) inside the submenu */
+.submenu .submenu-item {
+ 
+  padding-left: 2.75rem !important; 
+  font-size: 0.9rem;
+}
+.submenu .submenu-item i {
+  margin-left: -1.75rem; 
+}
 
 
 
