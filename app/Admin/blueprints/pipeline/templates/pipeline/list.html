@@ -1,18 +1,17 @@
-{# app/Admin/blueprints/service_area/templates/service_area/list.html #}
 {% extends 'layouts/base.html' %}
 
-{% block title %}Service Areas{% endblock %}
+{% block title %}Pipelines{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-3">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h4 class="mb-0">Service Areas</h4>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#areaModal" data-mode="create">
-      <i class="fa fa-plus me-1"></i> New Area
+    <h4 class="mb-0">Pipelines</h4>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#pipelineModal" data-mode="create">
+      <i class="fa fa-plus me-1"></i> New Pipeline
     </button>
   </div>
 
-  {# Flash Messages #}
+  {# Flash messages #}
   {% with messages=get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for category, message in messages %}
@@ -24,10 +23,14 @@
     {% endif %}
   {% endwith %}
 
-  {# ---------- Collapsible Filter Bar (auto-apply) ---------- #}
+  {# ---------- Collapsible Filter Bar ---------- #}
   {% set active_count =
-      (1 if request.args.get('area_code') else 0)
-    + (1 if request.args.get('area_name') else 0)
+      (1 if request.args.get('tank_id') else 0)
+    + (1 if request.args.get('service_area_id') else 0)
+    + (1 if request.args.get('status') else 0)
+    + (1 if request.args.get('line_name') else 0)
+    + (1 if request.args.get('date_from') else 0)
+    + (1 if request.args.get('date_to') else 0)
   %}
 
   <div class="filter-bar mb-3">
@@ -48,21 +51,61 @@
     </div>
 
     <div id="filtersCollapse" class="collapse {% if active_count > 0 %}show{% endif %}">
-      <form id="filtersForm" method="GET" action="{{ url_for('service_area.list_areas') }}" class="row g-2 p-3 align-items-end">
-        <div class="col-md-4 col-sm-6">
-          <label class="form-label mb-1">Area Code</label>
-          <input type="text" name="area_code" class="form-control form-control-sm"
-                 placeholder="e.g. AREA-001"
-                 value="{{ request.args.get('area_code','') }}">
+      <form id="filtersForm" method="GET" action="{{ url_for('pipeline.list_pipelines') }}" class="row g-2 p-3 align-items-end">
+        <div class="col-lg-3 col-sm-6">
+          <label class="form-label mb-1">Tank</label>
+          <select name="tank_id" class="form-select form-select-sm">
+            <option value="">All</option>
+            {% for t in active_tanks %}
+              <option value="{{ t.id }}" {{ 'selected' if request.args.get('tank_id')|int == t.id else '' }}>
+                {{ t.tank_name }}
+              </option>
+            {% endfor %}
+          </select>
         </div>
-        <div class="col-md-4 col-sm-6">
-          <label class="form-label mb-1">Area Name</label>
-          <input type="text" name="area_name" class="form-control form-control-sm"
-                 placeholder="e.g. East Village"
-                 value="{{ request.args.get('area_name','') }}">
+
+        <div class="col-lg-3 col-sm-6">
+          <label class="form-label mb-1">Service Area</label>
+          <select name="service_area_id" class="form-select form-select-sm">
+            <option value="">All</option>
+            {% for a in service_areas %}
+              <option value="{{ a.id }}" {{ 'selected' if request.args.get('service_area_id')|int == a.id else '' }}>
+                {{ a.area_name }} ({{ a.area_code }})
+              </option>
+            {% endfor %}
+          </select>
         </div>
-        <div class="col-md-4 col-sm-12 text-end">
-          <a href="{{ url_for('service_area.list_areas') }}" class="btn btn-secondary btn-sm">
+
+        <div class="col-lg-2 col-sm-6">
+          <label class="form-label mb-1">Status</label>
+          <select name="status" class="form-select form-select-sm">
+            <option value="">All</option>
+            {% for s in status_options %}
+              <option value="{{ s }}" {{ 'selected' if request.args.get('status') == s else '' }}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-lg-2 col-sm-6">
+          <label class="form-label mb-1">Line name</label>
+          <input type="text" name="line_name" class="form-control form-control-sm"
+                 placeholder="Search by name" value="{{ request.args.get('line_name','') }}">
+        </div>
+
+        <div class="col-lg-1 col-6">
+          <label class="form-label mb-1">From</label>
+          <input type="date" name="date_from" class="form-control form-control-sm"
+                 value="{{ request.args.get('date_from','') }}">
+        </div>
+
+        <div class="col-lg-1 col-6">
+          <label class="form-label mb-1">To</label>
+          <input type="date" name="date_to" class="form-control form-control-sm"
+                 value="{{ request.args.get('date_to','') }}">
+        </div>
+
+        <div class="col-12 text-end">
+          <a href="{{ url_for('pipeline.list_pipelines') }}" class="btn btn-secondary btn-sm">
             <i class="fa fa-rotate-right me-1"></i> Reset
           </a>
         </div>
@@ -71,26 +114,26 @@
   </div>
   {# ---------- End Filter Bar ---------- #}
 
-  {# Build preserved querystring for export links #}
+  {# preserved QS for exports #}
   {% set qs = namespace(pairs=[]) %}
   {% for k, v in request.args.items() %}
     {% set _ = qs.pairs.append(k ~ '=' ~ (v|urlencode)) %}
   {% endfor %}
   {% set preserved = qs.pairs|join('&') %}
 
-  <!-- Download Buttons -->
+  {# Download buttons (left) #}
   <div class="d-flex justify-content-start align-items-center mb-2 gap-2">
     <a class="btn btn-primary btn-sm"
-       href="{{ url_for('service_area.export_csv') }}{% if preserved %}?{{ preserved }}{% endif %}">
+       href="{{ url_for('pipeline.export_csv') }}{% if preserved %}?{{ preserved }}{% endif %}">
       <i class="fa fa-file-csv me-1"></i> Download CSV
     </a>
     <a class="btn btn-primary btn-sm"
-       href="{{ url_for('service_area.export_xlsx') }}{% if preserved %}?{{ preserved }}{% endif %}">
+       href="{{ url_for('pipeline.export_xlsx') }}{% if preserved %}?{{ preserved }}{% endif %}">
       <i class="fa fa-file-excel me-1"></i> Download Excel
     </a>
   </div>
 
-  {# Page size selector (top of table) #}
+  {# Per-page selector #}
   <div class="mb-2 page-size">
     <form method="get" class="d-inline">
       {% for k, v in request.args.items() if k not in ['per_page', 'page'] %}
@@ -107,36 +150,56 @@
     </form>
   </div>
 
-  <!-- Table -->
+  {# Table #}
   <div class="table-responsive">
     <table class="table table-striped table-hover align-middle table-sm">
       <thead class="table-light">
         <tr>
           <th>#</th>
-          <th>Area Code</th>
-          <th>Area Name</th>
-          <th>Remarks</th>
+          <th>Line name</th>
+          <th>Tank</th>
+          <th>Service area</th>
+          <th>Ø (mm)</th>
+          <th>Length (km)</th>
+          <th>Flow (L/s)</th>
+          <th>Pressure (bar)</th>
+          <th>Status</th>
+          <th>Last supply</th>
           <th class="text-end">Actions</th>
         </tr>
       </thead>
       <tbody>
-        {% for a in areas %}
+        {% for p in pipelines %}
           <tr>
-            <td>{{ a.id }}</td>
-            <td>{{ a.area_code }}</td>
-            <td class="text-truncate" style="max-width: 220px">{{ a.area_name }}</td>
-            <td class="text-truncate" style="max-width: 260px">{{ a.remarks or '' }}</td>
+            <td>{{ p.id }}</td>
+            <td class="text-truncate" style="max-width: 200px">{{ p.line_name }}</td>
+            <td>{{ p.tank.tank_name if p.tank else p.tank_id }}</td>
+            <td>{{ p.service_area.area_name if p.service_area else p.service_area_id }}</td>
+            <td>{{ p.pipe_diameter_mm or '' }}</td>
+            <td>{{ p.length_km or '' }}</td>
+            <td>{{ p.flow_rate_lps or '' }}</td>
+            <td>{{ p.pressure_bar or '' }}</td>
+            <td>{{ p.status or '' }}</td>
+            <td>{{ p.last_supply_date or '' }}</td>
             <td class="text-end text-nowrap">
               <button class="btn btn-edit"
-                      data-bs-toggle="modal" data-bs-target="#areaModal"
+                      data-bs-toggle="modal" data-bs-target="#pipelineModal"
                       data-mode="edit"
-                      data-id="{{ a.id }}"
-                      data-area_name="{{ a.area_name }}"
-                      data-remarks="{{ a.remarks or '' }}">
+                      data-id="{{ p.id }}"
+                      data-tank_id="{{ p.tank_id }}"
+                      data-service_area_id="{{ p.service_area_id }}"
+                      data-line_name="{{ p.line_name }}"
+                      data-pipe_diameter_mm="{{ p.pipe_diameter_mm or '' }}"
+                      data-length_km="{{ p.length_km or '' }}"
+                      data-flow_rate_lps="{{ p.flow_rate_lps or '' }}"
+                      data-pressure_bar="{{ p.pressure_bar or '' }}"
+                      data-status="{{ p.status or '' }}"
+                      data-last_supply_date="{{ p.last_supply_date or '' }}"
+                      data-remarks="{{ p.remarks or '' }}">
                 Edit
               </button>
 
-              <form method="POST" action="{{ url_for('service_area.delete_area', area_id=a.id) }}"
+              <form method="POST" action="{{ url_for('pipeline.delete_pipeline', pipeline_id=p.id) }}"
                     class="d-inline delete-form">
                 <button type="button" class="btn btn-delete btn-confirm-delete">Delete</button>
               </form>
@@ -144,7 +207,7 @@
           </tr>
         {% else %}
           <tr>
-            <td colspan="5" class="text-center text-muted">No areas yet</td>
+            <td colspan="11" class="text-center text-muted">No pipelines yet</td>
           </tr>
         {% endfor %}
       </tbody>
@@ -161,10 +224,10 @@
       {% endfor %}
       {% set keep_qs = keep.pairs|join('&') %}
 
-      {% set first_href = url_for('service_area.list_areas') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=1&per_page=' ~ per_page %}
-      {% set prev_href  = url_for('service_area.list_areas') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ (pagination.prev_num or 1) ~ '&per_page=' ~ per_page %}
-      {% set next_href  = url_for('service_area.list_areas') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ (pagination.next_num or pagination.pages) ~ '&per_page=' ~ per_page %}
-      {% set last_href  = url_for('service_area.list_areas') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ pagination.pages ~ '&per_page=' ~ per_page %}
+      {% set first_href = url_for('pipeline.list_pipelines') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=1&per_page=' ~ per_page %}
+      {% set prev_href  = url_for('pipeline.list_pipelines') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ (pagination.prev_num or 1) ~ '&per_page=' ~ per_page %}
+      {% set next_href  = url_for('pipeline.list_pipelines') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ (pagination.next_num or pagination.pages) ~ '&per_page=' ~ per_page %}
+      {% set last_href  = url_for('pipeline.list_pipelines') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ pagination.pages ~ '&per_page=' ~ per_page %}
 
       <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
         <a class="page-link" href="{{ first_href }}">First</a>
@@ -176,7 +239,7 @@
       {% set start = max(1, pagination.page - 2) %}
       {% set end = min(pagination.pages, pagination.page + 2) %}
       {% for p in range(start, end + 1) %}
-        {% set p_href = url_for('service_area.list_areas') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ p ~ '&per_page=' ~ per_page %}
+        {% set p_href = url_for('pipeline.list_pipelines') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ p ~ '&per_page=' ~ per_page %}
         <li class="page-item {{ 'active' if p == pagination.page }}">
           <a class="page-link" href="{{ p_href }}">{{ p }}</a>
         </li>
@@ -193,26 +256,80 @@
   {% endif %}
 </div>
 
-<!-- Modal (Create / Edit) -->
-<div class="modal fade" id="areaModal" tabindex="-1" aria-labelledby="areaModalLabel" aria-hidden="true">
+{# Modal (create/edit) #}
+<div class="modal fade" id="pipelineModal" tabindex="-1" aria-labelledby="pipelineModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <form id="areaForm" method="POST" action="{{ url_for('service_area.create_area') }}">
+      <form id="pipelineForm" method="POST" action="{{ url_for('pipeline.create_pipeline') }}">
         <div class="modal-header">
-          <h5 class="modal-title" id="areaModalLabel">New Area</h5>
+          <h5 class="modal-title" id="pipelineModalLabel">New Pipeline</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
 
         <div class="modal-body">
           <div class="row g-2">
-            <div class="col-12">
-              <label class="form-label">Area Name</label>
-              <input name="area_name" class="form-control form-control-sm" required>
+            <div class="col-md-6">
+              <label class="form-label">Tank</label>
+              <select name="tank_id" class="form-select form-select-sm">
+                <option value="">— choose tank —</option>
+                {% for t in active_tanks %}
+                  <option value="{{ t.id }}">{{ t.tank_name }}</option>
+                {% endfor %}
+              </select>
             </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Service area</label>
+              <select name="service_area_id" class="form-select form-select-sm">
+                <option value="">— choose area —</option>
+                {% for a in service_areas %}
+                  <option value="{{ a.id }}">{{ a.area_name }} ({{ a.area_code }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Line name</label>
+              <input name="line_name" class="form-control form-control-sm" required>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Diameter (mm)</label>
+              <input name="pipe_diameter_mm" type="number" step="0.01" class="form-control form-control-sm" required>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Length (km)</label>
+              <input name="length_km" type="number" step="0.001" class="form-control form-control-sm" required>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Flow (L/s)</label>
+              <input name="flow_rate_lps" type="number" step="0.001" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Pressure (bar)</label>
+              <input name="pressure_bar" type="number" step="0.01" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Status</label>
+              <select name="status" class="form-select form-select-sm">
+                {% for s in status_options %}
+                  <option value="{{ s }}" {{ 'selected' if s=='Active' else '' }}>{{ s }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Last supply date</label>
+              <input name="last_supply_date" type="date" class="form-control form-control-sm">
+            </div>
+
             <div class="col-12">
               <label class="form-label">Remarks</label>
               <textarea name="remarks" rows="2" class="form-control form-control-sm"></textarea>
-              <small class="text-muted">Area code will be auto-generated (e.g. AREA-001).</small>
             </div>
           </div>
         </div>
@@ -233,23 +350,32 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       /* ---------- Modal: Create / Edit ---------- */
-      const modalEl = document.getElementById('areaModal');
+      const modalEl = document.getElementById('pipelineModal');
       modalEl.addEventListener('show.bs.modal', (event) => {
         const btn = event.relatedTarget;
-        const form = document.getElementById('areaForm');
-        const title = document.getElementById('areaModalLabel');
+        const form = document.getElementById('pipelineForm');
+        const title = document.getElementById('pipelineModalLabel');
         form.reset();
 
         if (btn?.dataset.mode === 'edit') {
-          title.textContent = 'Edit Area';
+          title.textContent = 'Edit Pipeline';
           const id = btn.dataset.id;
-          form.action = "{{ url_for('service_area.edit_area', area_id=0) }}".replace('0', id);
+          form.action = "{{ url_for('pipeline.edit_pipeline', pipeline_id=0) }}".replace('0', id);
 
-          form.area_name.value = btn.dataset.area_name || '';
-          form.remarks.value   = btn.dataset.remarks || '';
+          if (btn.dataset.tank_id) form.querySelector('select[name=\"tank_id\"]').value = btn.dataset.tank_id;
+          if (btn.dataset.service_area_id) form.querySelector('select[name=\"service_area_id\"]').value = btn.dataset.service_area_id;
+
+          form.line_name.value = btn.dataset.line_name || '';
+          form.pipe_diameter_mm.value = btn.dataset.pipe_diameter_mm || '';
+          form.length_km.value = btn.dataset.length_km || '';
+          form.flow_rate_lps.value = btn.dataset.flow_rate_lps || '';
+          form.pressure_bar.value = btn.dataset.pressure_bar || '';
+          if (btn.dataset.status) form.querySelector('select[name=\"status\"]').value = btn.dataset.status;
+          form.last_supply_date.value = btn.dataset.last_supply_date || '';
+          form.remarks.value = btn.dataset.remarks || '';
         } else {
-          title.textContent = 'New Area';
-          form.action = "{{ url_for('service_area.create_area') }}";
+          title.textContent = 'New Pipeline';
+          form.action = "{{ url_for('pipeline.create_pipeline') }}";
         }
       });
 
@@ -281,24 +407,31 @@
       function activeCount() {
         const params = new FormData(filtersForm);
         let c = 0;
-        if ((params.get('area_code') || '').trim()) c++;
-        if ((params.get('area_name') || '').trim()) c++;
+        if ((params.get('tank_id') || '').trim()) c++;
+        if ((params.get('service_area_id') || '').trim()) c++;
+        if ((params.get('status') || '').trim()) c++;
+        if ((params.get('line_name') || '').trim()) c++;
+        if ((params.get('date_from') || '').trim()) c++;
+        if ((params.get('date_to') || '').trim()) c++;
         return c;
       }
       function updateCount() { countEl.textContent = activeCount(); }
 
-      // auto submit on typing (debounced)
-      function debounce(fn, ms) { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(this,a),ms); }; }
-      const debouncedSubmit = debounce(() => { updateCount(); filtersForm.submit(); }, 350);
-
-      filtersForm.querySelectorAll('input[type="text"]').forEach(inp => {
-        inp.addEventListener('input', debouncedSubmit);
-        inp.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter') { e.preventDefault(); debouncedSubmit(); }
-        });
+      // Auto submit on selects + text + dates (debounce for text)
+      filtersForm.querySelectorAll('select, input[type=\"date\"]').forEach(el => {
+        el.addEventListener('change', () => { updateCount(); filtersForm.submit(); });
+      });
+      const ln = filtersForm.querySelector('input[name=\"line_name\"]');
+      let t;
+      ln.addEventListener('input', () => {
+        clearTimeout(t);
+        t = setTimeout(() => { updateCount(); filtersForm.submit(); }, 400);
+      });
+      ln.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); updateCount(); filtersForm.submit(); }
       });
 
-      // chevron rotation
+      // Chevron rotation
       collapseEl.addEventListener('shown.bs.collapse', () => { chevron.style.transform = 'rotate(180deg)'; });
       collapseEl.addEventListener('hidden.bs.collapse', () => { chevron.style.transform = 'rotate(0deg)'; });
       if (collapseEl.classList.contains('show')) { chevron.style.transform = 'rotate(180deg)'; }

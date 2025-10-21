@@ -4,7 +4,7 @@
     <a href="{{ url_for('main.admin_dashboard') }}"><i class="fas fa-home"></i> Dashboard</a>
 
     <a href="" class="has-submenu js-submenu-toggle">
-      <i class="fas fa-water"></i> 
+   <i class="fas fa-water"></i> 
       <span>Source</span>
       <i class="fas fa-chevron-down nav-arrow"></i>
     </a>
@@ -13,18 +13,18 @@
     </div>
 
     <a href="" class="has-submenu js-submenu-toggle">
-      <i class="fas fa-prescription-bottle-alt"></i>
-      <span>Treatment</span>
+      <i class="fas fa-filter"></i>
+      <span>Filtration</span>
       <i class="fas fa-chevron-down nav-arrow"></i>
     </a>
 
     <div class="submenu">
-      <a href="{{ url_for('treatment_record.list_records') }}" class="submenu-item">Treatment_Record</a>
+      <a href="{{ url_for('treatment_record.list_records') }}" class="submenu-item">Filtration_Record</a>
       <a href="{{ url_for('chemical.list_chemicals') }}" class="submenu-item">Chemical</a>
     </div>
 
     <a href="" class="has-submenu js-submenu-toggle">
-      <i class="fas fa-flask"></i>
+      <i class="fas fa-boxes-stacked"></i>
       <span>Storage</span>
       <i class="fas fa-chevron-down nav-arrow"></i>
     </a>

@@ -6,7 +6,7 @@ class Pipeline(db.Model):
     __tablename__ = "pipelines"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    tank_id = db.Column(db.Integer, db.ForeignKey("storage_tanks.id"), nullable=False)
+    tank_id = db.Column(db.Integer, db.ForeignKey("storage_tank.id"), nullable=False)
     service_area_id = db.Column(db.Integer, db.ForeignKey("service_areas.id"), nullable=False)
 
     line_name = db.Column(db.String(120), nullable=False)
