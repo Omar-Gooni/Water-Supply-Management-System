@@ -355,7 +355,6 @@
       filtersForm.querySelectorAll('select, input[type="date"]').forEach(el => {
         el.addEventListener('change', () => { updateCount(); filtersForm.submit(); });
       });
-
       // auto submit on typing serial (debounced)
       const submitSerial = debounce(() => { updateCount(); filtersForm.submit(); }, 400);
       serialInput.addEventListener('input', submitSerial);
