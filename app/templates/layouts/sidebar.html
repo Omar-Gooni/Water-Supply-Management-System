@@ -4,7 +4,7 @@
     <a href="{{ url_for('main.admin_dashboard') }}"><i class="fas fa-home"></i> Dashboard</a>
 
     <a href="" class="has-submenu js-submenu-toggle">
-      <i class="fas fa-water"></i>
+      <i class="fas fa-water"></i> 
       <span>Source</span>
       <i class="fas fa-chevron-down nav-arrow"></i>
     </a>
@@ -30,6 +30,17 @@
     </a>
     <div class="submenu">
       <a href="{{ url_for('storage_tank.list_tanks') }}" class="submenu-item">Storage_tank</a>
+    </div>
+
+    <a href="" class="has-submenu js-submenu-toggle">
+      <i class="fas fa-faucet"></i>
+      <span>Distribution</span>
+      <i class="fas fa-chevron-down nav-arrow"></i>
+    </a>
+
+    <div class="submenu">
+      <a href="{{ url_for('service_area.list_areas') }}" class="submenu-item">Service_area</a>
+      <a href="{{ url_for('pipeline.list_pipelines') }}" class="submenu-item">Pipeline</a>
     </div>
 
     <a href="{{ url_for('auth.logout') }}">
