@@ -1,0 +1,441 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Customers{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <!-- Header + New -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h4 class="mb-0">Customers</h4>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#customerModal" data-mode="create">
+      <i class="fa fa-plus me-1"></i> New Customer
+    </button>
+  </div>
+
+  <!-- Flash -->
+  {% with messages=get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {# ---------- Collapsible Filter Bar (auto-apply) ---------- #}
+  {% set active_count =
+      (1 if request.args.get('service_area_id') else 0)
+    + (1 if request.args.get('supply_line_id') else 0)
+    + (1 if request.args.get('customer_type') else 0)
+    + (1 if request.args.get('status') else 0)
+    + (1 if request.args.get('q') else 0)
+  %}
+
+  <div class="filter-bar mb-3">
+    <div class="filter-header d-flex justify-content-between align-items-center"
+         data-bs-toggle="collapse"
+         data-bs-target="#filtersCollapse"
+         aria-expanded="{{ 'true' if active_count > 0 else 'false' }}"
+         aria-controls="filtersCollapse"
+         style="cursor:pointer">
+      <div class="d-flex align-items-center gap-2 text-white">
+        <i class="fa fa-filter"></i>
+        <strong>Filter Options</strong>
+      </div>
+      <div class="d-flex align-items-center gap-2 text-white">
+        <span><span id="filter-active-count">{{ active_count }}</span> active</span>
+        <i class="fa fa-chevron-down" id="filter-chevron"></i>
+      </div>
+    </div>
+
+    <div id="filtersCollapse" class="collapse {% if active_count > 0 %}show{% endif %}">
+      <form id="filtersForm" method="GET" action="{{ url_for('customer.list_customers') }}" class="row g-2 p-3 align-items-end">
+        <div class="col-lg-2 col-sm-6">
+          <label class="form-label mb-1">Service Area</label>
+          <select name="service_area_id" class="form-select form-select-sm">
+            <option value="">All</option>
+            {% for a in service_areas %}
+              <option value="{{ a.id }}" {{ 'selected' if request.args.get('service_area_id')|int == a.id else '' }}>
+                {{ a.area_name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-lg-2 col-sm-6">
+          <label class="form-label mb-1">Supply Line</label>
+          <select name="supply_line_id" class="form-select form-select-sm">
+            <option value="">All</option>
+            {% for l in supply_lines %}
+              <option value="{{ l.id }}" {{ 'selected' if request.args.get('supply_line_id')|int == l.id else '' }}>
+                {{ l.line_name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-lg-2 col-sm-6">
+          <label class="form-label mb-1">Type</label>
+          <select name="customer_type" class="form-select form-select-sm">
+            <option value="">All</option>
+            {% for t in ['household','commercial','institution'] %}
+              <option value="{{ t }}" {{ 'selected' if request.args.get('customer_type') == t else '' }}>
+                {{ t|capitalize }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-lg-2 col-sm-6">
+          <label class="form-label mb-1">Status</label>
+          <select name="status" class="form-select form-select-sm">
+            <option value="">All</option>
+            {% for st in ['active','disconnected','pending'] %}
+              <option value="{{ st }}" {{ 'selected' if request.args.get('status') == st else '' }}>
+                {{ st|capitalize }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-lg-3 col-sm-8">
+          <label class="form-label mb-1">Search</label>
+          <input id="qInput" type="text" name="q" class="form-control form-control-sm"
+                 placeholder="Name / Phone / Customer ID"
+                 value="{{ request.args.get('q','') }}">
+        </div>
+
+        <div class="col-lg-1 col-sm-4 text-end">
+          <a href="{{ url_for('customer.list_customers') }}" class="btn btn-secondary btn-sm w-100">
+            <i class="fa fa-rotate-right"></i>
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+  {# ---------- End Filter Bar ---------- #}
+
+  {# ---------- Preserve current query for export links ---------- #}
+  {% set qs = namespace(pairs=[]) %}
+  {% for k, v in request.args.items() %}
+    {% if k not in ['page'] %}
+      {% set _ = qs.pairs.append(k ~ '=' ~ (v|urlencode)) %}
+    {% endif %}
+  {% endfor %}
+  {% set preserved = qs.pairs|join('&') %}
+
+  <!-- Download buttons (left) -->
+  <div class="d-flex justify-content-start align-items-center mb-2 gap-2">
+    <a class="btn btn-primary btn-sm"
+       href="{{ url_for('customer.export_csv') }}{% if preserved %}?{{ preserved }}{% endif %}">
+      <i class="fa fa-file-csv me-1"></i> Download CSV
+    </a>
+    <a class="btn btn-primary btn-sm"
+       href="{{ url_for('customer.export_xlsx') }}{% if preserved %}?{{ preserved }}{% endif %}">
+      <i class="fa fa-file-excel me-1"></i> Download Excel
+    </a>
+  </div>
+
+  {# --- Page size selector --- #}
+  <div class="mb-2 page-size">
+    <form method="get" class="d-inline">
+      {% for k, v in request.args.items() if k not in ['per_page','page'] %}
+        <input type="hidden" name="{{ k }}" value="{{ v }}">
+      {% endfor %}
+      <select name="per_page"
+              class="form-select form-select-sm w-auto d-inline-block"
+              onchange="this.form.submit()"
+              aria-label="Rows per page">
+        {% for n in allowed_per_page %}
+          <option value="{{ n }}" {{ 'selected' if per_page == n else '' }}>{{ n }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  <!-- Table -->
+  <div class="table-responsive">
+    <table class="table table-striped table-hover align-middle table-sm">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Customer ID</th>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Service Area</th>
+          <th>Supply Line</th>
+          <th>Phone</th>
+          <th>Created</th>
+          <th>Status</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in customers %}
+          <tr>
+            <td>{{ c.id }}</td>
+            <td><span class="badge bg-light text-dark">{{ c.customer_id }}</span></td>
+            <td class="text-truncate" style="max-width: 200px">{{ c.customer_name }}</td>
+            <td>{{ c.customer_type|capitalize }}</td>
+            <td>{{ c.service_area.area_name if c.service_area else c.service_area_id }}</td>
+            <td>{{ c.supply_line.line_name if c.supply_line else c.supply_line_id }}</td>
+            <td>{{ c.phone or '' }}</td>
+            <td>{{ c.created_date or '' }}</td>
+            <td>{{ c.status|capitalize }}</td>
+            <td class="text-end text-nowrap">
+              <button class="btn btn-edit"
+                      data-bs-toggle="modal" data-bs-target="#customerModal"
+                      data-mode="edit"
+                      data-id="{{ c.id }}"
+                      data-service_area_id="{{ c.service_area_id }}"
+                      data-supply_line_id="{{ c.supply_line_id }}"
+                      data-customer_name="{{ c.customer_name }}"
+                      data-customer_type="{{ c.customer_type }}"
+                      data-address="{{ c.address or '' }}"
+                      data-phone="{{ c.phone or '' }}"
+                      data-status="{{ c.status }}">
+                Edit
+              </button>
+
+              <form method="POST" action="{{ url_for('customer.delete_customer', cust_id=c.id) }}"
+                    class="d-inline delete-form">
+                <button type="button" class="btn btn-delete btn-confirm-delete">Delete</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="10" class="text-center text-muted">No customers found</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# --- Pagination --- #}
+  {% if pagination.pages > 1 %}
+  <nav aria-label="Pagination" class="mt-2">
+    <ul class="pagination pagination-sm justify-content-end mb-0">
+      {% set keep = namespace(pairs=[]) %}
+      {% for k, v in request.args.items() if k not in ['page'] %}
+        {% set _ = keep.pairs.append(k ~ '=' ~ (v|urlencode)) %}
+      {% endfor %}
+      {% set keep_qs = keep.pairs|join('&') %}
+
+      {% set first_href = url_for('customer.list_customers') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=1' %}
+      {% set prev_href  = url_for('customer.list_customers') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ (pagination.prev_num or 1) %}
+      {% set next_href  = url_for('customer.list_customers') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ (pagination.next_num or pagination.pages) %}
+      {% set last_href  = url_for('customer.list_customers') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ pagination.pages %}
+
+      <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+        <a class="page-link" href="{{ first_href }}">First</a>
+      </li>
+      <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+        <a class="page-link" href="{{ prev_href }}">&laquo;</a>
+      </li>
+
+      {% set start = max(1, pagination.page - 2) %}
+      {% set end = min(pagination.pages, pagination.page + 2) %}
+      {% for p in range(start, end + 1) %}
+        {% set p_href = url_for('customer.list_customers') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ p %}
+        <li class="page-item {{ 'active' if p == pagination.page }}">
+          <a class="page-link" href="{{ p_href }}">{{ p }}</a>
+        </li>
+      {% endfor %}
+
+      <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+        <a class="page-link" href="{{ next_href }}">&raquo;</a>
+      </li>
+      <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+        <a class="page-link" href="{{ last_href }}">Last</a>
+      </li>
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+
+<!-- Modal (Create/Edit) -->
+<div class="modal fade" id="customerModal" tabindex="-1" aria-labelledby="customerModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="customerForm" method="POST" action="{{ url_for('customer.create_customer') }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="customerModalLabel">New Customer</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label">Customer Name</label>
+              <input name="customer_name" class="form-control form-control-sm" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Customer Type</label>
+              <select name="customer_type" class="form-select form-select-sm" required>
+                <option value="">—</option>
+                <option value="household">Household</option>
+                <option value="commercial">Commercial</option>
+                <option value="institution">Institution</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Service Area</label>
+              <select name="service_area_id" class="form-select form-select-sm" required>
+                <option value="">— choose —</option>
+                {% for a in service_areas %}
+                  <option value="{{ a.id }}">{{ a.area_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Supply Line</label>
+              <select name="supply_line_id" class="form-select form-select-sm">
+                <option value="">-- Select Pipeline --</option>
+                {% for pipe in pipelines %}
+                  <option value="{{ pipe.id }}">{{ pipe.line_name }} ({{ pipe.status }})</option>
+                {% endfor %}
+              </select>
+
+            </div>
+
+            <div class="col-md-8">
+              <label class="form-label">Address</label>
+              <input name="address" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Phone</label>
+              <input name="phone" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Status</label>
+              <select name="status" class="form-select form-select-sm">
+                <option value="active" selected>Active</option>
+                <option value="disconnected">Disconnected</option>
+                <option value="pending">Pending</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Customer ID</label>
+              <input class="form-control form-control-sm" value="Auto" disabled>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Created Date</label>
+              <input class="form-control form-control-sm" value="Today (auto)" disabled>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-primary btn-sm" type="submit">Save</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ super() }}
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      /* ---------- Modal: Create / Edit ---------- */
+      const modalEl = document.getElementById('customerModal');
+      modalEl.addEventListener('show.bs.modal', (event) => {
+        const btn = event.relatedTarget;
+        const form = document.getElementById('customerForm');
+        const title = document.getElementById('customerModalLabel');
+        form.reset();
+
+        if (btn?.dataset.mode === 'edit') {
+          title.textContent = 'Edit Customer';
+          const id = btn.dataset.id;
+          form.action = "{{ url_for('customer.edit_customer', cust_id=0) }}".replace('0', id);
+
+          form.customer_name.value = btn.dataset.customer_name || '';
+          form.customer_type.value = btn.dataset.customer_type || '';
+
+          if (btn.dataset.service_area_id) form.querySelector('[name="service_area_id"]').value = btn.dataset.service_area_id;
+          if (btn.dataset.supply_line_id)  form.querySelector('[name="supply_line_id"]').value  = btn.dataset.supply_line_id;
+
+          form.address.value = btn.dataset.address || '';
+          form.phone.value   = btn.dataset.phone || '';
+          if (btn.dataset.status) form.querySelector('[name="status"]').value = btn.dataset.status;
+        } else {
+          title.textContent = 'New Customer';
+          form.action = "{{ url_for('customer.create_customer') }}";
+        }
+      });
+
+      /* ---------- SweetAlert2 Delete Confirm ---------- */
+      document.querySelectorAll(".btn-confirm-delete").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const form = btn.closest(".delete-form");
+          Swal.fire({
+            title: "Are you sure?",
+            text: "This action cannot be undone!",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#2eaadf",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Yes, delete it!",
+            cancelButtonText: "Cancel"
+          }).then((result) => {
+            if (result.isConfirmed) form.submit();
+          });
+        });
+      });
+
+      /* ---------- Filters: auto-apply + debounce search + counter + chevron ---------- */
+      const filtersForm = document.getElementById('filtersForm');
+      const qInput = document.getElementById('qInput');
+      const chevron = document.getElementById('filter-chevron');
+      const collapseEl = document.getElementById('filtersCollapse');
+      const countEl = document.getElementById('filter-active-count');
+
+      function debounce(fn, ms) {
+        let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), ms); };
+      }
+      function activeCount() {
+        const fd = new FormData(filtersForm);
+        let c = 0;
+        if ((fd.get('service_area_id') || '').trim()) c++;
+        if ((fd.get('supply_line_id') || '').trim()) c++;
+        if ((fd.get('customer_type') || '').trim()) c++;
+        if ((fd.get('status') || '').trim()) c++;
+        if ((fd.get('q') || '').trim()) c++;
+        return c;
+      }
+      function updateCount() { countEl.textContent = activeCount(); }
+
+      // selects auto submit
+      filtersForm.querySelectorAll('select').forEach(s => {
+        s.addEventListener('change', () => {
+          updateCount();
+          filtersForm.submit();
+        });
+      });
+
+      // search debounce
+      const submitQ = debounce(() => { updateCount(); filtersForm.submit(); }, 450);
+      qInput.addEventListener('input', submitQ);
+      qInput.addEventListener('keypress', e => {
+        if (e.key === 'Enter') { e.preventDefault(); updateCount(); filtersForm.submit(); }
+      });
+
+      // chevron rotation
+      collapseEl.addEventListener('shown.bs.collapse', () => { chevron.style.transform = 'rotate(180deg)'; });
+      collapseEl.addEventListener('hidden.bs.collapse', () => { chevron.style.transform = 'rotate(0deg)'; });
+      if (collapseEl.classList.contains('show')) chevron.style.transform = 'rotate(180deg)';
+    });
+  </script>
+{% endblock %}
