@@ -1,0 +1,442 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Treatment Records{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h4 class="mb-0">Treatment Records</h4>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#treatRecModal" data-mode="create">
+      <i class="fa fa-plus me-1"></i> New Record
+    </button>
+  </div>
+
+  {# Flash Messages #}
+  {% with messages=get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {# ---------- Collapsible Filter Bar (auto-apply) ---------- #}
+  {% set active_count =
+      (1 if request.args.get('source_id') else 0)
+    + (1 if request.args.get('chemical_id') else 0)
+    + (1 if request.args.get('date_from') else 0)
+    + (1 if request.args.get('date_to') else 0)
+  %}
+
+  <div class="filter-bar mb-3">
+    <div class="filter-header d-flex justify-content-between align-items-center"
+         data-bs-toggle="collapse"
+         data-bs-target="#filtersCollapse"
+         aria-expanded="{{ 'true' if active_count > 0 else 'false' }}"
+         aria-controls="filtersCollapse"
+         style="cursor:pointer">
+      <div class="d-flex align-items-center gap-2 text-white">
+        <i class="fa fa-filter"></i>
+        <strong>Filter Options</strong>
+      </div>
+      <div class="d-flex align-items-center gap-2 text-white">
+        <span><span id="filter-active-count">{{ active_count }}</span> active</span>
+        <i class="fa fa-chevron-down" id="filter-chevron"></i>
+      </div>
+    </div>
+
+    <div id="filtersCollapse" class="collapse {% if active_count > 0 %}show{% endif %}">
+      <form id="filtersForm" method="GET" action="{{ url_for('treatment_record.list_records') }}" class="row g-2 p-3 align-items-end">
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label mb-1">Source</label>
+          <select name="source_id" class="form-select form-select-sm">
+            <option value="">All</option>
+            {% for s in active_sources %}
+              <option value="{{ s.id }}" {{ 'selected' if request.args.get('source_id')|int == s.id else '' }}>
+                {{ s.source_name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label mb-1">Chemical</label>
+          <select name="chemical_id" class="form-select form-select-sm">
+            <option value="">All</option>
+            {% for c in active_chemicals %}
+              <option value="{{ c.id }}" {{ 'selected' if request.args.get('chemical_id')|int == c.id else '' }}>
+                {{ c.chemical_name }} ({{ c.unit }})
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label mb-1">From</label>
+          <input type="date" name="date_from" class="form-control form-control-sm"
+                 value="{{ request.args.get('date_from','') }}">
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label mb-1">To</label>
+          <input type="date" name="date_to" class="form-control form-control-sm"
+                 value="{{ request.args.get('date_to','') }}">
+        </div>
+
+        <div class="col-12 text-end">
+          <a href="{{ url_for('treatment_record.list_records') }}" class="btn btn-secondary btn-sm">
+            <i class="fa fa-rotate-right me-1"></i> Reset
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+  {# ---------- End Filter Bar ---------- #}
+
+  {# ---------- Build preserved querystring once for export links ---------- #}
+  {% set qs = namespace(pairs=[]) %}
+  {% for k, v in request.args.items() %}
+    {% set _ = qs.pairs.append(k ~ '=' ~ (v|urlencode)) %}
+  {% endfor %}
+  {% set preserved = qs.pairs|join('&') %}
+
+  {# ---------- Downloads (left, WSMS primary) ---------- #}
+  <div class="d-flex justify-content-start align-items-center mb-2 gap-2">
+    <a class="btn btn-primary btn-sm"
+       href="{{ url_for('treatment_record.export_csv') }}{% if preserved %}?{{ preserved }}{% endif %}">
+      <i class="fa fa-file-csv me-1"></i> Download CSV
+    </a>
+    <a class="btn btn-primary btn-sm"
+       href="{{ url_for('treatment_record.export_xlsx') }}{% if preserved %}?{{ preserved }}{% endif %}">
+      <i class="fa fa-file-excel me-1"></i> Download Excel
+    </a>
+  </div>
+
+  {# --- Page size selector --- #}
+  <div class="mb-2 page-size">
+    <form method="get" class="d-inline">
+      {% for k, v in request.args.items() if k not in ['per_page', 'page'] %}
+        <input type="hidden" name="{{ k }}" value="{{ v }}">
+      {% endfor %}
+      <select name="per_page"
+              class="form-select form-select-sm w-auto d-inline-block"
+              onchange="this.form.submit()"
+              aria-label="Rows per page">
+        {% for n in allowed_per_page %}
+          <option value="{{ n }}" {{ 'selected' if per_page == n else '' }}>{{ n }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  <!-- Table -->
+  <div class="table-responsive">
+    <table class="table table-striped table-hover align-middle table-sm">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Source</th>
+          <th>Chemical</th>
+          <th>Raw (m³)</th>
+          <th>Treated (m³)</th>
+          <th>Used</th>
+          <th>pH</th>
+          <th>Turbidity (NTU)</th>
+          <th>Cl₂ (mg/L)</th>
+          <th>Status</th>
+          <th>Operator</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+          <tr>
+            <td>{{ r.id }}</td>
+            <td>{{ r.treatment_date or '' }}</td>
+            <td>{{ r.source.source_name if r.source else r.source_id }}</td>
+            <td>{{ r.chemical.chemical_name if r.chemical else r.chemical_id }}</td>
+            <td>{{ r.raw_water_m3 or '' }}</td>
+            <td>{{ r.treated_water_m3 or '' }}</td>
+            <td>{{ r.amount_used or '' }} {{ r.unit or '' }}</td>
+            <td>{{ r.ph_level or '' }}</td>
+            <td>{{ r.turbidity_ntu or '' }}</td>
+            <td>{{ r.chlorine_mgL or '' }}</td>
+            <td>{{ r.quality_status or '' }}</td>
+            <td class="text-truncate" style="max-width: 160px">{{ r.operator_name or '' }}</td>
+            <td class="text-end text-nowrap">
+              <button class="btn btn-edit"
+                      data-bs-toggle="modal" data-bs-target="#treatRecModal"
+                      data-mode="edit"
+                      data-id="{{ r.id }}"
+                      data-source_id="{{ r.source_id }}"
+                      data-chemical_id="{{ r.chemical_id }}"
+                      data-treatment_date="{{ r.treatment_date }}"
+                      data-raw_water_m3="{{ r.raw_water_m3 or '' }}"
+                      data-treated_water_m3="{{ r.treated_water_m3 or '' }}"
+                      data-amount_used="{{ r.amount_used or '' }}"
+                      data-unit="{{ r.unit or '' }}"
+                      data-ph_level="{{ r.ph_level or '' }}"
+                      data-turbidity_ntu="{{ r.turbidity_ntu or '' }}"
+                      data-chlorine_mgL="{{ r.chlorine_mgL or '' }}"
+                      data-quality_status="{{ r.quality_status or '' }}"
+                      data-operator_name="{{ r.operator_name or '' }}"
+                      data-remarks="{{ r.remarks or '' }}">
+                Edit
+              </button>
+
+              <form method="POST" action="{{ url_for('treatment_record.delete_record', rec_id=r.id) }}"
+                    class="d-inline delete-form">
+                <button type="button" class="btn btn-delete btn-confirm-delete">Delete</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="13" class="text-center text-muted">No records yet</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# --- Pagination --- #}
+  {% if pagination.pages > 1 %}
+  <nav aria-label="Pagination" class="mt-2">
+    <ul class="pagination pagination-sm justify-content-end mb-0">
+      {% set keep = namespace(pairs=[]) %}
+      {% for k, v in request.args.items() if k not in ['page', 'per_page'] %}
+        {% set _ = keep.pairs.append(k ~ '=' ~ (v|urlencode)) %}
+      {% endfor %}
+      {% set keep_qs = keep.pairs|join('&') %}
+
+      {% set first_href = url_for('treatment_record.list_records') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=1&per_page=' ~ per_page %}
+      {% set prev_href  = url_for('treatment_record.list_records') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ (pagination.prev_num or 1) ~ '&per_page=' ~ per_page %}
+      {% set next_href  = url_for('treatment_record.list_records') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ (pagination.next_num or pagination.pages) ~ '&per_page=' ~ per_page %}
+      {% set last_href  = url_for('treatment_record.list_records') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ pagination.pages ~ '&per_page=' ~ per_page %}
+
+      <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+        <a class="page-link" href="{{ first_href }}">First</a>
+      </li>
+      <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+        <a class="page-link" href="{{ prev_href }}">&laquo;</a>
+      </li>
+
+      {% set start = max(1, pagination.page - 2) %}
+      {% set end = min(pagination.pages, pagination.page + 2) %}
+      {% for p in range(start, end + 1) %}
+        {% set p_href = url_for('treatment_record.list_records') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ p ~ '&per_page=' ~ per_page %}
+        <li class="page-item {{ 'active' if p == pagination.page }}">
+          <a class="page-link" href="{{ p_href }}">{{ p }}</a>
+        </li>
+      {% endfor %}
+
+      <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+        <a class="page-link" href="{{ next_href }}">&raquo;</a>
+      </li>
+      <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+        <a class="page-link" href="{{ last_href }}">Last</a>
+      </li>
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+
+<!-- Modal (Create / Edit) -->
+<div class="modal fade" id="treatRecModal" tabindex="-1" aria-labelledby="treatRecModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="treatRecForm" method="POST" action="{{ url_for('treatment_record.create_record') }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="treatRecModalLabel">New Treatment Record</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label">Source</label>
+              <select name="source_id" class="form-select form-select-sm">
+                <option value="">-- choose source --</option>
+                {% for s in active_sources %}
+                  <option value="{{ s.id }}">{{ s.source_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Chemical</label>
+              <select name="chemical_id" class="form-select form-select-sm">
+                <option value="">-- choose chemical --</option>
+                {% for c in active_chemicals %}
+                  <option value="{{ c.id }}">{{ c.chemical_name }} ({{ c.unit }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Treatment Date</label>
+              <input name="treatment_date" type="date" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Unit</label>
+              <select name="unit" class="form-select form-select-sm">
+                <option value="kg">kg</option>
+                <option value="L">L</option>
+                <option value="mg/L">mg/L</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Raw water (m³)</label>
+              <input name="raw_water_m3" type="number" step="0.01" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Treated water (m³)</label>
+              <input name="treated_water_m3" type="number" step="0.01" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Amount used</label>
+              <input name="amount_used" type="number" step="0.001" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">pH</label>
+              <input name="ph_level" type="number" step="0.01" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Turbidity (NTU)</label>
+              <input name="turbidity_ntu" type="number" step="0.01" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Chlorine (mg/L)</label>
+              <input name="chlorine_mgL" type="number" step="0.001" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Quality status</label>
+              <select name="quality_status" class="form-select form-select-sm">
+                <option value="">—</option>
+                <option value="Safe">Safe</option>
+                <option value="Unsafe">Unsafe</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Operator</label>
+              <input name="operator_name" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Remarks</label>
+              <textarea name="remarks" rows="2" class="form-control form-control-sm"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-primary btn-sm" type="submit">Save</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ super() }}
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      /* ---------- Modal: Create / Edit ---------- */
+      const modalEl = document.getElementById('treatRecModal');
+      modalEl.addEventListener('show.bs.modal', (event) => {
+        const btn = event.relatedTarget;
+        const form = document.getElementById('treatRecForm');
+        const title = document.getElementById('treatRecModalLabel');
+        form.reset();
+
+        if (btn?.dataset.mode === 'edit') {
+          title.textContent = 'Edit Treatment Record';
+          const id = btn.dataset.id;
+          form.action = "{{ url_for('treatment_record.edit_record', rec_id=0) }}".replace('0', id);
+
+          if (btn.dataset.source_id)   form.querySelector('select[name="source_id"]').value = btn.dataset.source_id;
+          if (btn.dataset.chemical_id) form.querySelector('select[name="chemical_id"]').value = btn.dataset.chemical_id;
+
+          form.treatment_date.value   = btn.dataset.treatment_date || '';
+          form.raw_water_m3.value     = btn.dataset.raw_water_m3 || '';
+          form.treated_water_m3.value = btn.dataset.treated_water_m3 || '';
+          form.amount_used.value      = btn.dataset.amount_used || '';
+          if (btn.dataset.unit) form.querySelector('select[name="unit"]').value = btn.dataset.unit;
+
+          form.ph_level.value         = btn.dataset.ph_level || '';
+          form.turbidity_ntu.value    = btn.dataset.turbidity_ntu || '';
+          form.chlorine_mgL.value     = btn.dataset.chlorine_mgL || '';
+          if (btn.dataset.quality_status) form.querySelector('select[name="quality_status"]').value = btn.dataset.quality_status;
+          form.operator_name.value    = btn.dataset.operator_name || '';
+          form.remarks.value          = btn.dataset.remarks || '';
+        } else {
+          title.textContent = 'New Treatment Record';
+          form.action = "{{ url_for('treatment_record.create_record') }}";
+        }
+      });
+
+      /* ---------- SweetAlert2 Delete Confirm ---------- */
+      document.querySelectorAll(".btn-confirm-delete").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const form = btn.closest(".delete-form");
+          Swal.fire({
+            title: "Are you sure?",
+            text: "This action cannot be undone!",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#2eaadf",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Yes, delete it!",
+            cancelButtonText: "Cancel"
+          }).then((result) => {
+            if (result.isConfirmed) form.submit();
+          });
+        });
+      });
+
+      /* ---------- Filters: auto-apply + counter + chevron ---------- */
+      const filtersForm = document.getElementById('filtersForm');
+      const collapseEl = document.getElementById('filtersCollapse');
+      const chevron = document.getElementById('filter-chevron');
+      const countEl = document.getElementById('filter-active-count');
+
+      function activeCount() {
+        const params = new FormData(filtersForm);
+        let c = 0;
+        if ((params.get('source_id') || '').trim()) c++;
+        if ((params.get('chemical_id') || '').trim()) c++;
+        if ((params.get('date_from') || '').trim()) c++;
+        if ((params.get('date_to') || '').trim()) c++;
+        return c;
+      }
+      function updateCount() { countEl.textContent = activeCount(); }
+
+      filtersForm.querySelectorAll('select, input[type="date"]').forEach(el => {
+        el.addEventListener('change', () => {
+          updateCount();
+          filtersForm.submit();
+        });
+      });
+
+      collapseEl.addEventListener('shown.bs.collapse', () => { chevron.style.transform = 'rotate(180deg)'; });
+      collapseEl.addEventListener('hidden.bs.collapse', () => { chevron.style.transform = 'rotate(0deg)'; });
+      if (collapseEl.classList.contains('show')) { chevron.style.transform = 'rotate(180deg)'; }
+    });
+  </script>
+{% endblock %}
