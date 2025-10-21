@@ -1,0 +1,421 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Storage Tanks{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <!-- Header + New -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h4 class="mb-0">Storage Tanks</h4>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#tankModal" data-mode="create">
+      <i class="fa fa-plus me-1"></i> New Tank
+    </button>
+  </div>
+
+  <!-- Flash messages -->
+  {% with messages=get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {# ---------- Collapsible Filter Bar (auto-apply) ---------- #}
+  {% set active_count =
+      (1 if request.args.get('source_id') else 0)
+    + (1 if request.args.get('status') else 0)
+    + (1 if request.args.get('tank_name') else 0)
+  %}
+
+  <div class="filter-bar mb-3">
+    <div class="filter-header d-flex justify-content-between align-items-center"
+         data-bs-toggle="collapse"
+         data-bs-target="#filtersCollapse"
+         aria-expanded="{{ 'true' if active_count > 0 else 'false' }}"
+         aria-controls="filtersCollapse"
+         style="cursor:pointer">
+      <div class="d-flex align-items-center gap-2 text-white">
+        <i class="fa fa-filter"></i>
+        <strong>Filter Options</strong>
+      </div>
+      <div class="d-flex align-items-center gap-2 text-white">
+        <span><span id="filter-active-count">{{ active_count }}</span> active</span>
+        <i class="fa fa-chevron-down" id="filter-chevron"></i>
+      </div>
+    </div>
+
+    <div id="filtersCollapse" class="collapse {% if active_count > 0 %}show{% endif %}">
+      <form id="filtersForm" method="GET" action="{{ url_for('storage_tank.list_tanks') }}" class="row g-2 p-3 align-items-end">
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label mb-1">Source (Active only)</label>
+          <select name="source_id" class="form-select form-select-sm">
+            <option value="">All</option>
+            {% for s in active_sources %}
+              <option value="{{ s.id }}" {{ 'selected' if request.args.get('source_id')|int == s.id else '' }}>
+                {{ s.source_name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label mb-1">Status</label>
+          <select name="status" class="form-select form-select-sm">
+            <option value="">All</option>
+            <option value="Active"       {{ 'selected' if request.args.get('status')=='Active' else '' }}>Active</option>
+            <option value="Maintenance"  {{ 'selected' if request.args.get('status')=='Maintenance' else '' }}>Maintenance</option>
+            <option value="Inactive"     {{ 'selected' if request.args.get('status')=='Inactive' else '' }}>Inactive</option>
+          </select>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label mb-1">Tank name</label>
+          <input id="tankNameInput" type="text" name="tank_name" class="form-control form-control-sm"
+                 placeholder="Search by name"
+                 value="{{ request.args.get('tank_name','') }}">
+        </div>
+
+        <div class="col-md-3 col-sm-6 text-end">
+          <a href="{{ url_for('storage_tank.list_tanks') }}" class="btn btn-secondary btn-sm">
+            <i class="fa fa-rotate-right me-1"></i> Reset
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+  {# ---------- End Filter Bar ---------- #}
+
+  {# ---------- Preserve current querystring for export links ---------- #}
+  {% set qs = namespace(pairs=[]) %}
+  {% for k, v in request.args.items() %}
+    {% set _ = qs.pairs.append(k ~ '=' ~ (v|urlencode)) %}
+  {% endfor %}
+  {% set preserved = qs.pairs|join('&') %}
+
+  <!-- Download Buttons (left) -->
+  <div class="d-flex justify-content-start align-items-center mb-2 gap-2">
+    <a class="btn btn-primary btn-sm"
+       href="{{ url_for('storage_tank.export_csv') }}{% if preserved %}?{{ preserved }}{% endif %}">
+      <i class="fa fa-file-csv me-1"></i> Download CSV
+    </a>
+    <a class="btn btn-primary btn-sm"
+       href="{{ url_for('storage_tank.export_xlsx') }}{% if preserved %}?{{ preserved }}{% endif %}">
+      <i class="fa fa-file-excel me-1"></i> Download Excel
+    </a>
+  </div>
+
+  {# --- Page size selector (input only) --- #}
+  <div class="mb-2 page-size">
+    <form method="get" class="d-inline">
+      {% for k, v in request.args.items() if k not in ['per_page', 'page'] %}
+        <input type="hidden" name="{{ k }}" value="{{ v }}">
+      {% endfor %}
+      <select name="per_page"
+              class="form-select form-select-sm w-auto d-inline-block"
+              onchange="this.form.submit()"
+              aria-label="Rows per page">
+        {% for n in allowed_per_page %}
+          <option value="{{ n }}" {{ 'selected' if per_page == n else '' }}>{{ n }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  <!-- Table -->
+  <div class="table-responsive">
+    <table class="table table-striped table-hover align-middle table-sm">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Tank</th>
+          <th>Source</th>
+          <th>Capacity (m³)</th>
+          <th>Current (m³)</th>
+          <th>% Full</th>
+          <th class="d-none d-md-table-cell">Last Inflow (m³)</th>
+          <th class="d-none d-md-table-cell">Inflow Date</th>
+          <th class="d-none d-md-table-cell">Last Outflow (m³)</th>
+          <th class="d-none d-md-table-cell">Outflow Date</th>
+          <th>Status</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tanks %}
+          <tr>
+            <td>{{ t.id }}</td>
+            <td class="text-truncate" style="max-width: 180px">{{ t.tank_name }}</td>
+            <td>{{ t.source.source_name if t.source else t.source_id }}</td>
+            <td>{{ t.capacity_m3 or '' }}</td>
+            <td>{{ t.current_level_m3 or '' }}</td>
+            <td>
+              {% if t.percent_full is not none %}
+                {{ '%.0f%%'|format(t.percent_full) }}
+              {% endif %}
+            </td>
+            <td class="d-none d-md-table-cell">{{ t.last_inflow_m3 or '' }}</td>
+            <td class="d-none d-md-table-cell">{{ t.last_inflow_date or '' }}</td>
+            <td class="d-none d-md-table-cell">{{ t.last_outflow_m3 or '' }}</td>
+            <td class="d-none d-md-table-cell">{{ t.last_outflow_date or '' }}</td>
+            <td>{{ t.status }}</td>
+            <td class="text-end text-nowrap">
+              <button class="btn btn-edit"
+                      data-bs-toggle="modal" data-bs-target="#tankModal"
+                      data-mode="edit"
+                      data-id="{{ t.id }}"
+                      data-source_id="{{ t.source_id }}"
+                      data-tank_name="{{ t.tank_name }}"
+                      data-capacity_m3="{{ t.capacity_m3 or '' }}"
+                      data-current_level_m3="{{ t.current_level_m3 or '' }}"
+                      data-last_inflow_m3="{{ t.last_inflow_m3 or '' }}"
+                      data-last_inflow_date="{{ t.last_inflow_date or '' }}"
+                      data-last_outflow_m3="{{ t.last_outflow_m3 or '' }}"
+                      data-last_outflow_date="{{ t.last_outflow_date or '' }}"
+                      data-status="{{ t.status or '' }}"
+                      data-remarks="{{ t.remarks or '' }}">
+                Edit
+              </button>
+
+              <form method="POST" action="{{ url_for('storage_tank.delete_tank', tank_id=t.id) }}"
+                    class="d-inline delete-form">
+                <button type="button" class="btn btn-delete btn-confirm-delete">Delete</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="12" class="text-center text-muted">No tanks yet</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# --- Pagination (bottom) --- #}
+  {% if pagination.pages > 1 %}
+  <nav aria-label="Pagination" class="mt-2">
+    <ul class="pagination pagination-sm justify-content-end mb-0">
+      {# keep query except page/per_page #}
+      {% set keep = namespace(pairs=[]) %}
+      {% for k, v in request.args.items() if k not in ['page', 'per_page'] %}
+        {% set _ = keep.pairs.append(k ~ '=' ~ (v|urlencode)) %}
+      {% endfor %}
+      {% set keep_qs = keep.pairs|join('&') %}
+
+      {% set first_href = url_for('storage_tank.list_tanks') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=1&per_page=' ~ per_page %}
+      {% set prev_href  = url_for('storage_tank.list_tanks') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ (pagination.prev_num or 1) ~ '&per_page=' ~ per_page %}
+      {% set next_href  = url_for('storage_tank.list_tanks') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ (pagination.next_num or pagination.pages) ~ '&per_page=' ~ per_page %}
+      {% set last_href  = url_for('storage_tank.list_tanks') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ pagination.pages ~ '&per_page=' ~ per_page %}
+
+      <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+        <a class="page-link" href="{{ first_href }}">First</a>
+      </li>
+      <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+        <a class="page-link" href="{{ prev_href }}">&laquo;</a>
+      </li>
+
+      {% set start = max(1, pagination.page - 2) %}
+      {% set end = min(pagination.pages, pagination.page + 2) %}
+      {% for p in range(start, end + 1) %}
+        {% set p_href = url_for('storage_tank.list_tanks') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ p ~ '&per_page=' ~ per_page %}
+        <li class="page-item {{ 'active' if p == pagination.page }}">
+          <a class="page-link" href="{{ p_href }}">{{ p }}</a>
+        </li>
+      {% endfor %}
+
+      <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+        <a class="page-link" href="{{ next_href }}">&raquo;</a>
+      </li>
+      <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+        <a class="page-link" href="{{ last_href }}">Last</a>
+      </li>
+    </ul>
+  </nav>
+  {% endif %}
+
+</div>
+
+<!-- Modal (Create / Edit) -->
+<div class="modal fade" id="tankModal" tabindex="-1" aria-labelledby="tankModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="tankForm" method="POST" action="{{ url_for('storage_tank.create_tank') }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="tankModalLabel">New Storage Tank</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="row g-2">
+
+            <div class="col-md-6">
+              <label class="form-label">Source</label>
+          <select name="source_id" class="form-select form-select-sm" required>
+            <option value="">-- choose source --</option>
+            {% for s in safe_sources %}
+              <option value="{{ s.id }}">{{ s.source_name }}</option>
+            {% endfor %}
+          </select>
+
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Tank name</label>
+              <input name="tank_name" class="form-control form-control-sm" required>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Capacity (m³)</label>
+              <input name="capacity_m3" type="number" step="0.01" class="form-control form-control-sm" required>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Current level (m³)</label>
+              <input name="current_level_m3" type="number" step="0.01" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Last inflow (m³)</label>
+              <input name="last_inflow_m3" type="number" step="0.01" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Inflow date</label>
+              <input name="last_inflow_date" type="date" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Last outflow (m³)</label>
+              <input name="last_outflow_m3" type="number" step="0.01" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Outflow date</label>
+              <input name="last_outflow_date" type="date" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Status</label>
+              <select name="status" class="form-select form-select-sm">
+                <option value="Active" selected>Active</option>
+                <option value="Maintenance">Maintenance</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Remarks</label>
+              <textarea name="remarks" rows="2" class="form-control form-control-sm"></textarea>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-primary btn-sm" type="submit">Save</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ super() }}
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      /* ---------- Modal: Create / Edit ---------- */
+      const modalEl = document.getElementById('tankModal');
+      modalEl.addEventListener('show.bs.modal', (event) => {
+        const btn = event.relatedTarget;
+        const form = document.getElementById('tankForm');
+        const title = document.getElementById('tankModalLabel');
+        form.reset();
+
+        if (btn?.dataset.mode === 'edit') {
+          title.textContent = 'Edit Storage Tank';
+          const id = btn.dataset.id;
+          form.action = "{{ url_for('storage_tank.edit_tank', tank_id=0) }}".replace('0', id);
+
+          // selects
+          if (btn.dataset.source_id) form.querySelector('select[name="source_id"]').value = btn.dataset.source_id;
+          if (btn.dataset.status)    form.querySelector('select[name="status"]').value    = btn.dataset.status;
+
+          // inputs
+          form.tank_name.value          = btn.dataset.tank_name || '';
+          form.capacity_m3.value        = btn.dataset.capacity_m3 || '';
+          form.current_level_m3.value   = btn.dataset.current_level_m3 || '';
+          form.last_inflow_m3.value     = btn.dataset.last_inflow_m3 || '';
+          form.last_inflow_date.value   = btn.dataset.last_inflow_date || '';
+          form.last_outflow_m3.value    = btn.dataset.last_outflow_m3 || '';
+          form.last_outflow_date.value  = btn.dataset.last_outflow_date || '';
+          form.remarks.value            = btn.dataset.remarks || '';
+        } else {
+          title.textContent = 'New Storage Tank';
+          form.action = "{{ url_for('storage_tank.create_tank') }}";
+        }
+      });
+
+      /* ---------- SweetAlert2 Delete Confirm ---------- */
+      document.querySelectorAll(".btn-confirm-delete").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const form = btn.closest(".delete-form");
+          Swal.fire({
+            title: "Are you sure?",
+            text: "This action cannot be undone!",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#2eaadf",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Yes, delete it!",
+            cancelButtonText: "Cancel"
+          }).then((result) => {
+            if (result.isConfirmed) form.submit();
+          });
+        });
+      });
+
+      /* ---------- Filters: auto-apply + counter + chevron ---------- */
+      const filtersForm = document.getElementById('filtersForm');
+      const collapseEl  = document.getElementById('filtersCollapse');
+      const chevron     = document.getElementById('filter-chevron');
+      const countEl     = document.getElementById('filter-active-count');
+      const nameInput   = document.getElementById('tankNameInput');
+
+      function debounce(fn, ms) { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(this,a),ms) } }
+      function activeCount() {
+        const params = new FormData(filtersForm);
+        let c = 0;
+        if ((params.get('source_id') || '').trim()) c++;
+        if ((params.get('status') || '').trim()) c++;
+        if ((params.get('tank_name') || '').trim()) c++;
+        return c;
+      }
+      function updateCount(){ countEl.textContent = activeCount(); }
+
+      // select auto-submit
+      filtersForm.querySelectorAll('select').forEach(sel => {
+        sel.addEventListener('change', () => { updateCount(); filtersForm.submit(); });
+      });
+
+      // name auto-submit (debounced)
+      const submitName = debounce(() => { updateCount(); filtersForm.submit(); }, 400);
+      nameInput.addEventListener('input', submitName);
+      nameInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); updateCount(); filtersForm.submit(); }
+      });
+
+      // chevron rotation
+      collapseEl.addEventListener('shown.bs.collapse', () => { chevron.style.transform = 'rotate(180deg)'; });
+      collapseEl.addEventListener('hidden.bs.collapse', () => { chevron.style.transform = 'rotate(0deg)'; });
+      if (collapseEl.classList.contains('show')) { chevron.style.transform = 'rotate(180deg)'; }
+    });
+  </script>
+{% endblock %}
