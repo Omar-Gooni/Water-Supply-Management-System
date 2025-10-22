@@ -42,6 +42,7 @@
       <a href="{{ url_for('service_area.list_areas') }}" class="submenu-item">Service_area</a>
       <a href="{{ url_for('pipeline.list_pipelines') }}" class="submenu-item">Pipeline</a>
     </div>
+    
     <a href="" class="has-submenu js-submenu-toggle">
       <i class="fas fa-user-gear"></i> 
       <span>CRM</span>
@@ -50,6 +51,18 @@
 
     <div class="submenu">
       <a href="{{ url_for('customer.list_customers') }}" class="submenu-item">Customer</a>
+      <a href="{{ url_for('meter.list_meters') }}" class="submenu-item">Meter</a>
+      <a href="{{ url_for('meter_reading.list_readings') }}" class="submenu-item">Meter_reading</a>
+    </div>
+
+    <a href="" class="has-submenu js-submenu-toggle">
+      <i class="fas fa-file-invoice-dollar"></i>
+      <span>Billing</span>
+      <i class="fas fa-chevron-down nav-arrow"></i>
+    </a>
+
+    <div class="submenu">
+      <a href="{{ url_for('invoice.list_invoices') }}" class="submenu-item">Invoice</a>
       <a href="{{ url_for('meter.list_meters') }}" class="submenu-item">Meter</a>
       <a href="{{ url_for('meter_reading.list_readings') }}" class="submenu-item">Meter_reading</a>
     </div>
