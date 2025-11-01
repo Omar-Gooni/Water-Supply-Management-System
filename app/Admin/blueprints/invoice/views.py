@@ -1,16 +1,13 @@
-# app/Admin/blueprints/invoice/views.py
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, make_response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
+
 from datetime import date
 import csv, io
 from openpyxl import Workbook 
 from app.extensions import db
 from app.Auth.blueprints.auth.views import login_required, role_required
 
-from reportlab.pdfgen import canvas # pip install reportlab
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib import colors
+
+
 
 from app.Admin.blueprints.customer.models import Customer
 from app.Admin.blueprints.meter.models import Meter
@@ -259,19 +256,7 @@ def create_invoice():
     return redirect(url_for("invoice.list_invoices", **request.args))
 
 
-# ----------------- mark paid -----------------
-@invoice_bp.route("/admin/invoices/<int:invoice_id>/paid", methods=["POST"])
-@login_required
-@role_required("Admin")
-def mark_paid(invoice_id: int):
-    inv = Invoice.query.get_or_404(invoice_id)
-    if inv.status != "paid":
-        inv.status = "paid"
-        db.session.commit()
-        flash("Invoice marked as PAID.", "success")
-    else:
-        flash("Invoice already paid.", "info")
-    return redirect(url_for("invoice.list_invoices", **request.args))
+
 
 
 # ----------------- delete -----------------
@@ -284,113 +269,6 @@ def delete_invoice(invoice_id: int):
     db.session.commit()
     flash("Invoice deleted.", "info")
     return redirect(url_for("invoice.list_invoices", **request.args))
-
-# ---------- print (PDF display using ReportLab) ----------
-@invoice_bp.route("/admin/invoices/<int:invoice_id>/print")
-@login_required
-@role_required("Admin")
-def print_invoice(invoice_id: int):
-    inv = Invoice.query.get_or_404(invoice_id)
-    cust = inv.customer
-    # ... rest of your object fetching (reading, meter, org)
-    
-    # Org info (same as before)
-    org = {
-        "name": "Water Supply Management System",
-        "address": "Main Office, City",
-        "phone": "+252 61 000 0000",
-        "email": "billing@wsms.local",
-    }
-
-    # Use a BytesIO buffer to hold the PDF in memory
-    buffer = io.BytesIO()
-    
-    # Create the PDF document template
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    styles = getSampleStyleSheet()
-    Story = [] # This list holds all the elements to be drawn on the PDF
-
-    # --- 1. Header/Organization Info ---
-    # Add your organization name
-    Story.append(Paragraph(f"**{org['name']}**", styles['h2']))
-    Story.append(Paragraph(org['address'], styles['Normal']))
-    Story.append(Paragraph(org['phone'], styles['Normal']))
-    Story.append(Paragraph(org['email'], styles['Normal']))
-    Story.append(Spacer(1, 12))
-
-    # --- 2. Invoice Details Table ---
-    invoice_data = [
-        ["INVOICE #:", inv.invoice_no or ""],
-        ["Status:", inv.status or ""],
-        ["Issue Date:", inv.issue_date.isoformat() if inv.issue_date else ""],
-        ["Due Date:", inv.due_date.isoformat() if inv.due_date else ""],
-    ]
-    invoice_table = Table(invoice_data, colWidths=[100, 200])
-    invoice_table.setStyle([
-        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
-        ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'),
-    ])
-    Story.append(invoice_table)
-    Story.append(Spacer(1, 24))
-
-    # --- 3. Customer Info ---
-    Story.append(Paragraph("<b>CUSTOMER</b>", styles['h4']))
-    Story.append(Paragraph(f"**{cust.customer_name}**", styles['Normal']))
-    Story.append(Paragraph(cust.address or '', styles['Normal']))
-    Story.append(Paragraph(cust.phone or '', styles['Normal']))
-    Story.append(Spacer(1, 24))
-
-    # --- 4. Meter Reading Details Table ---
-    table_headers = ["Description", "Last (m³)", "Current (m³)", "Used (m³)", "Rate", "Amount"]
-    
-    # Format the data row
-    data_row = [
-        f"Water usage ({inv.period_start} - {inv.period_end})",
-        f"{inv.last_read_m3:.2f}" if inv.last_read_m3 is not None else "0.00",
-        f"{inv.current_read_m3:.2f}" if inv.current_read_m3 is not None else "0.00",
-        f"{inv.used_water_m3:.2f}" if inv.used_water_m3 is not None else "0.00",
-        f"{inv.rate_per_m3:.2f} {inv.currency or 'USD'}",
-        f"{inv.amount:.2f} {inv.currency or 'USD'}",
-    ]
-    
-    item_data = [table_headers, data_row]
-    
-    item_table = Table(item_data, colWidths=[180, 70, 70, 70, 70, 70])
-    item_table.setStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey), # Header background
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke), # Header text
-        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'), # Numeric columns align right
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-    ])
-    Story.append(item_table)
-    Story.append(Spacer(1, 12))
-    
-    # --- 5. Total ---
-    total_data = [
-        ["TOTAL:", f"{inv.amount:.2f} {inv.currency or 'USD'}"],
-    ]
-    total_table = Table(total_data, colWidths=[300, 150]) # Aligned right on the page
-    total_table.setStyle([
-        ('ALIGN', (1,0), (1,0), 'RIGHT'),
-        ('FONTNAME', (0,0), (-1,-1), 'Helvetica-Bold'),
-    ])
-    Story.append(total_table)
-
-    # --- 6. Build the PDF ---
-    doc.build(Story)
-    
-    # Go to the start of the BytesIO buffer
-    buffer.seek(0)
-    
-    # Return the PDF file as a response
-    return send_file(
-        buffer,
-        mimetype="application/pdf",
-        as_attachment=False, # This is key for 'inline' display
-        download_name=f"Invoice_{inv.invoice_no}.pdf"
-    )
-
 # ----------------- exports (respect filters) -----------------
 @invoice_bp.route("/admin/invoices/export.csv")
 @login_required

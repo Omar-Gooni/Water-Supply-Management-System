@@ -17,13 +17,10 @@ class MeterReading(db.Model):
     rate_per_m3     = db.Column(db.Numeric(12, 3), nullable=False)
     amount_due      = db.Column(db.Numeric(12, 3), nullable=False)
 
-    reading_date    = db.Column(db.Date, nullable=False, index=True, default=date.today)
+    reading_date    = db.Column(db.Date, nullable=False, default=date.today)
 
     # Relations
     meter    = db.relationship("Meter", backref=db.backref("readings", lazy="dynamic"))
     customer = db.relationship("Customer", backref=db.backref("readings", lazy="dynamic"))
 
-    # Optional: avoid duplicate meter+date entries
-    __table_args__ = (
-        UniqueConstraint("meter_id", "reading_date", name="uq_meter_date"),
-    )
+

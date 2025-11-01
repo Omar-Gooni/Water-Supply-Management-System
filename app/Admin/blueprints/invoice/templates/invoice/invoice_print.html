@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Invoice {{ invoice.invoice_no }}</title>
+    <style>
+        /* Put all your print-specific CSS here */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            font-size: 12pt;
+        }
+        .container {
+            width: 800px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Water Supply Invoice</h1>
+        
+        <p>Invoice Number: **{{ invoice.invoice_no }}**</p>
+        <p>Date: **{{ invoice.date_created.strftime('%Y-%m-%d') }}**</p>
+        
+        <h2>Customer Details</h2>
+        <p>Name: {{ invoice.customer.customer_name }}</p>
+        <p>Address: {{ invoice.customer.address }}</p>
+
+        <h2>Charges</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Water Meter Charge</td>
+                    <td>1</td>
+                    <td>$50.00</td>
+                    <td>$50.00</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div style="margin-top: 30px; text-align: right;">
+            <strong>Grand Total: $50.00</strong>
+        </div>
+    </div>
+</body>
+</html>

@@ -164,10 +164,7 @@
             <td>{{ i.issue_date or '' }}</td>
             <td>{{ i.due_date or '' }}</td>
             <td class="text-end text-nowrap">
-                <a class="btn btn-edit btn-sm"
-                    href="{{ url_for('invoice.print_invoice', invoice_id=i.id) }}">
-                    <i class="fa fa-print"></i> Print
-                </a>
+              
               <form method="POST" action="{{ url_for('invoice.delete_invoice', invoice_id=i.id) }}"
                     class="d-inline delete-form">
                 <button type="button" class="btn btn-delete btn-confirm-delete">Delete</button>

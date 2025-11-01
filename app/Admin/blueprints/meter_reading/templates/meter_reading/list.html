@@ -6,10 +6,13 @@
 <div class="container-fluid py-3">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <h4 class="mb-0">Meter Readings</h4>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#readingModal" data-mode="create">
+    <button class="btn btn-primary" id="newReadingBtn">
       <i class="fa fa-plus me-1"></i> New Reading
     </button>
   </div>
+
+  <!-- Date restriction message container -->
+  <div id="date-restriction-message"></div>
 
   {# Flash Messages #}
   {% with messages=get_flashed_messages(with_categories=true) %}
@@ -128,8 +131,7 @@
             <td>${{ r.amount_due or '' }}</td>
             <td class="text-end text-nowrap">
               <button class="btn btn-edit"
-                      data-bs-toggle="modal" data-bs-target="#readingModal"
-                      data-mode="edit"
+                      data-bs-toggle="modal" data-bs-target="#readingEditModal"
                       data-id="{{ r.id }}"
                       data-customer_id="{{ r.customer_id }}"
                       data-meter_id="{{ r.meter_id }}"
@@ -199,13 +201,13 @@
   {% endif %}
 </div>
 
-<!-- Modal (Create / Edit) -->
-<div class="modal fade" id="readingModal" tabindex="-1" aria-labelledby="readingModalLabel" aria-hidden="true">
+<!-- Create Modal -->
+<div class="modal fade" id="readingCreateModal" tabindex="-1" aria-labelledby="readingCreateLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <form id="readingForm" method="POST" action="{{ url_for('meter_reading.create_reading') }}">
+      <form id="readingCreateForm" method="POST" action="{{ url_for('meter_reading.create_reading') }}">
         <div class="modal-header">
-          <h5 class="modal-title" id="readingModalLabel">New Reading</h5>
+          <h5 class="modal-title" id="readingCreateLabel">New Reading</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
 
@@ -213,7 +215,7 @@
           <div class="row g-2">
             <div class="col-md-6">
               <label class="form-label">Customer</label>
-              <select id="customerSelect" name="customer_id" class="form-select form-select-sm" required>
+              <select id="create_customerSelect" name="customer_id" class="form-select form-select-sm" required>
                 <option value="">-- choose customer --</option>
                 {% for c in active_customers %}
                   <option value="{{ c.id }}"
@@ -227,8 +229,8 @@
 
             <div class="col-md-6">
               <label class="form-label">Meter</label>
-              <input id="meterDisplay" class="form-control form-control-sm" value="" readonly>
-              <input type="hidden" id="meterIdInput" name="meter_id">
+              <input id="create_meterDisplay" class="form-control form-control-sm" value="" readonly>
+              <input type="hidden" id="create_meterIdInput" name="meter_id">
             </div>
 
             <div class="col-md-6">
@@ -238,27 +240,27 @@
 
             <div class="col-md-6">
               <label class="form-label">Last (m³)</label>
-              <input name="last_read_m3" id="lastInput" type="number" step="0.01" class="form-control form-control-sm">
+              <input name="last_read_m3" id="create_lastInput" type="number" step="0.01" class="form-control form-control-sm">
             </div>
 
             <div class="col-md-6">
               <label class="form-label">Current (m³)</label>
-              <input name="current_read_m3" id="currentInput" type="number" step="0.01" class="form-control form-control-sm">
+              <input name="current_read_m3" id="create_currentInput" type="number" step="0.01" class="form-control form-control-sm">
             </div>
 
             <div class="col-md-6">
               <label class="form-label">Used (m³)</label>
-              <input name="used_water_m3" id="usedInput" type="number" step="0.01" class="form-control form-control-sm" readonly>
+              <input name="used_water_m3" id="create_usedInput" type="number" step="0.01" class="form-control form-control-sm" readonly>
             </div>
 
             <div class="col-md-6">
               <label class="form-label">Rate per m³</label>
-              <input name="rate_per_m3" id="rateInput" type="number" step="0.01" class="form-control form-control-sm">
+              <input name="rate_per_m3" id="create_rateInput" type="number" step="0.01" class="form-control form-control-sm">
             </div>
 
             <div class="col-md-6">
               <label class="form-label">Amount</label>
-              <input name="amount_due" id="amountInput" type="number" step="0.01" class="form-control form-control-sm" readonly>
+              <input name="amount_due" id="create_amountInput" type="number" step="0.01" class="form-control form-control-sm" readonly>
             </div>
           </div>
         </div>
@@ -271,128 +273,245 @@
     </div>
   </div>
 </div>
+<!-- Edit Modal -->
+<div class="modal fade" id="readingEditModal" tabindex="-1" aria-labelledby="readingEditLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="readingEditForm" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title" id="readingEditLabel">Edit Reading</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label">Customer</label>
+              <select id="edit_customerSelect" name="customer_id" class="form-select form-select-sm" required>
+                <option value="">-- choose customer --</option>
+                {% for c in active_customers %}
+                  <option value="{{ c.id }}"
+                          data-meter-id="{{ customer_to_meter.get(c.id, {}).get('id','') }}"
+                          data-meter-serial="{{ customer_to_meter.get(c.id, {}).get('serial','') }}">
+                    {{ c.customer_name }}{% if c.customer_id %} ({{ c.customer_id }}){% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Meter</label>
+              <input id="edit_meterDisplay" class="form-control form-control-sm" value="" readonly>
+              <input type="hidden" id="edit_meterIdInput" name="meter_id">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Reading Date</label>
+              <input name="reading_date" id="edit_reading_date" type="date" class="form-control form-control-sm" required>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Last (m³)</label>
+              <input name="last_read_m3" id="edit_lastInput" type="number" step="0.01" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Current (m³)</label>
+              <input name="current_read_m3" id="edit_currentInput" type="number" step="0.01" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Used (m³)</label>
+              <input name="used_water_m3" id="edit_usedInput" type="number" step="0.01" class="form-control form-control-sm" readonly>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Rate per m³</label>
+              <input name="rate_per_m3" id="edit_rateInput" type="number" step="0.01" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Amount</label>
+              <input name="amount_due" id="edit_amountInput" type="number" step="0.01" class="form-control form-control-sm" readonly>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-primary btn-sm" type="submit">Update</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
 {% endblock %}
 
 {% block extra_scripts %}
   {{ super() }}
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      /* ---------- Modal: Create / Edit ---------- */
-      const modalEl = document.getElementById('readingModal');
-      modalEl.addEventListener('show.bs.modal', (event) => {
-        const btn = event.relatedTarget;
-        const form = document.getElementById('readingForm');
-        const title = document.getElementById('readingModalLabel');
-        form.reset();
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  /* ---------- Helpers ---------- */
+  function toNum(v){ const n=parseFloat(v); return isNaN(n)?0:n; }
+  function recompute(scope){
+    const lastEl = scope.querySelector('[id$="lastInput"]');
+    const currEl = scope.querySelector('[id$="currentInput"]');
+    const usedEl = scope.querySelector('[id$="usedInput"]');
+    const rateEl = scope.querySelector('[id$="rateInput"]');
+    const amtEl  = scope.querySelector('[id$="amountInput"]');
 
-        // clear meter display/hidden when opening
-        document.getElementById('meterDisplay').value = '';
-        document.getElementById('meterIdInput').value = '';
-
-        if (btn?.dataset.mode === 'edit') {
-          title.textContent = 'Edit Reading';
-          const id = btn.dataset.id;
-          form.action = "{{ url_for('meter_reading.edit_reading', rec_id=0) }}".replace('0', id);
-
-          // selects
-          if (btn.dataset.customer_id) {
-            document.getElementById('customerSelect').value = btn.dataset.customer_id;
-          }
-          if (btn.dataset.meter_id) {
-            document.getElementById('meterIdInput').value = btn.dataset.meter_id;
-            // try to find the option to read serial text
-            const opt = document.querySelector('#customerSelect option[value="' + (btn.dataset.customer_id || '') + '"]');
-            const serial = opt?.dataset?.meterSerial || '';
-            document.getElementById('meterDisplay').value = serial || btn.dataset.meter_id;
-          }
-
-          // inputs
-          form.reading_date.value   = btn.dataset.reading_date || '';
-          form.last_read_m3.value   = btn.dataset.last_read_m3 || '';
-          form.current_read_m3.value= btn.dataset.current_read_m3 || '';
-          form.used_water_m3.value  = btn.dataset.used_water_m3 || '';
-          form.rate_per_m3.value    = btn.dataset.rate_per_m3 || '';
-          form.amount_due.value     = btn.dataset.amount_due || '';
-        } else {
-          title.textContent = 'New Reading';
-          form.action = "{{ url_for('meter_reading.create_reading') }}";
-        }
-      });
-
-      /* ---------- Auto-fill meter on customer change ---------- */
-      const customerSelect = document.getElementById('customerSelect');
-      const meterDisplay = document.getElementById('meterDisplay');
-      const meterIdInput = document.getElementById('meterIdInput');
-      customerSelect?.addEventListener('change', () => {
-        const opt = customerSelect.selectedOptions[0];
-        const meterId = opt?.dataset?.meterId || '';
-        const serial  = opt?.dataset?.meterSerial || '';
-        meterIdInput.value = meterId;
-        meterDisplay.value = serial || (meterId ? ('ID ' + meterId) : '');
-      });
-
-      /* ---------- Live compute: used & amount ---------- */
-      function toNum(v){ const n=parseFloat(v); return isNaN(n)?0:n; }
-      const lastEl = document.getElementById('lastInput');
-      const currEl = document.getElementById('currentInput');
-      const usedEl = document.getElementById('usedInput');
-      const rateEl = document.getElementById('rateInput');
-      const amtEl  = document.getElementById('amountInput');
-
-      function recompute(){
-        const used = Math.max(0, toNum(currEl.value) - toNum(lastEl.value));
-        usedEl.value = used.toFixed(2);
-        const amount = used * toNum(rateEl.value);
-        amtEl.value = amount.toFixed(2);
-      }
-      [lastEl, currEl, rateEl].forEach(el => el?.addEventListener('input', recompute));
-
-      /* ---------- SweetAlert2 Delete Confirm ---------- */
-      document.querySelectorAll(".btn-confirm-delete").forEach(btn => {
-        btn.addEventListener("click", () => {
-          const form = btn.closest(".delete-form");
-          Swal.fire({
-            title: "Are you sure?",
-            text: "This action cannot be undone!",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#2eaadf",
-            cancelButtonColor: "#d33",
-            confirmButtonText: "Yes, delete it!",
-            cancelButtonText: "Cancel"
-          }).then((result) => {
-            if (result.isConfirmed) form.submit();
-          });
-        });
-      });
-
-      /* ---------- Filters: auto-apply + counter + chevron ---------- */
-      const filtersForm = document.getElementById('filtersForm');
-      const collapseEl = document.getElementById('filtersCollapse');
-      const chevron = document.getElementById('filter-chevron');
-      const countEl = document.getElementById('filter-active-count');
-
-      function activeCount() {
-        const params = new FormData(filtersForm);
-        let c = 0;
-        if ((params.get('customer_id') || '').trim()) c++;
-        if ((params.get('date_from') || '').trim()) c++;
-        if ((params.get('date_to') || '').trim()) c++;
-        return c;
-      }
-      function updateCount() { countEl.textContent = activeCount(); }
-
-      filtersForm.querySelectorAll('select, input[type="date"]').forEach(el => {
-        el.addEventListener('change', () => {
-          updateCount();
-          filtersForm.submit();
-        });
-      });
-
-      collapseEl.addEventListener('shown.bs.collapse', () => { chevron.style.transform = 'rotate(180deg)'; });
-      collapseEl.addEventListener('hidden.bs.collapse', () => { chevron.style.transform = 'rotate(0deg)'; });
-      if (collapseEl.classList.contains('show')) { chevron.style.transform = 'rotate(180deg)'; }
+    const used = Math.max(0, toNum(currEl?.value) - toNum(lastEl?.value));
+    if (usedEl) usedEl.value = used.toFixed(2);
+    const amount = used * toNum(rateEl?.value);
+    if (amtEl) amtEl.value = amount.toFixed(2);
+  }
+  function bindLiveCompute(scope){
+    ['lastInput','currentInput','rateInput'].forEach(suffix=>{
+      const el = scope.querySelector('[id$="'+suffix+'"]');
+      el?.addEventListener('input', ()=>recompute(scope));
     });
-  </script>
+  }
+  function bindCustomerMeterLink(scope, prefix){
+    const customerSelect = scope.querySelector('#'+prefix+'_customerSelect');
+    const meterDisplay   = scope.querySelector('#'+prefix+'_meterDisplay');
+    const meterIdInput   = scope.querySelector('#'+prefix+'_meterIdInput');
+    customerSelect?.addEventListener('change', () => {
+      const opt = customerSelect.selectedOptions[0];
+      const meterId = opt?.dataset?.meterId || '';
+      const serial  = opt?.dataset?.meterSerial || '';
+      if (meterIdInput) meterIdInput.value = meterId;
+      if (meterDisplay) meterDisplay.value = serial || (meterId ? ('ID ' + meterId) : '');
+    });
+  }
+
+  // /* ---------- Create Modal with Date Restriction ---------- */
+
+  document.getElementById('newReadingBtn').addEventListener('click', function(e) {
+    const today = new Date();
+    const currentDay = today.getDate();
+    
+    // Check if today's date is NOT between 10th and 15th
+    if (!(currentDay >= 2 && currentDay <= 5)) {
+        // Show message under the button
+        const messageHtml = `
+            <div class="alert alert-danger border-0 alert-dismissible fade show mt-2" role="alert">
+                <i class="fa fa-exclamation-triangle me-2"></i>
+                Readings can only be created between 2th and 5th of the month
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        document.getElementById('date-restriction-message').innerHTML = messageHtml;
+          // Hide message after  seconds
+        setTimeout(() => {
+            document.getElementById('date-restriction-message').innerHTML = '';
+        }, 7000);
+        return false;
+    } else {
+        // Clear any previous restriction messages
+        document.getElementById('date-restriction-message').innerHTML = '';
+        
+        // Setup modal
+        const createModal = document.getElementById('readingCreateModal');
+        createModal.addEventListener('show.bs.modal', () => {
+            const form = document.getElementById('readingCreateForm');
+            form.reset();
+            document.getElementById('create_meterDisplay').value = '';
+            document.getElementById('create_meterIdInput').value = '';
+        });
+        bindLiveCompute(createModal);
+        bindCustomerMeterLink(createModal, 'create');
+        
+        // MANUALLY open the modal
+        const modal = new bootstrap.Modal(createModal);
+        modal.show();
+    }
+});
+
+  /* ---------- Edit Modal ---------- */
+  const editModal = document.getElementById('readingEditModal');
+  editModal.addEventListener('show.bs.modal', (event) => {
+    const btn  = event.relatedTarget;
+    const form = document.getElementById('readingEditForm');
+
+    // Set action /rec_id
+    const id = btn?.dataset?.id;
+    form.action = "{{ url_for('meter_reading.edit_reading', rec_id=0) }}".replace('0', id);
+
+    // Set selects
+    const customerId = btn?.dataset?.customer_id || '';
+    const meterId    = btn?.dataset?.meter_id || '';
+    const customerSelect = document.getElementById('edit_customerSelect');
+    customerSelect.value = customerId;
+
+    // meter display from option data
+    const opt = customerSelect.querySelector('option[value="'+ customerId +'"]');
+    const serial = opt?.dataset?.meterSerial || '';
+    document.getElementById('edit_meterIdInput').value = meterId || (opt?.dataset?.meterId || '');
+    document.getElementById('edit_meterDisplay').value = serial || (meterId ? ('ID ' + meterId) : '');
+
+    // Inputs
+    document.getElementById('edit_reading_date').value = btn?.dataset?.reading_date || '';
+    document.getElementById('edit_lastInput').value    = btn?.dataset?.last_read_m3 || '';
+    document.getElementById('edit_currentInput').value = btn?.dataset?.current_read_m3 || '';
+    document.getElementById('edit_usedInput').value    = btn?.dataset?.used_water_m3 || '';
+    document.getElementById('edit_rateInput').value    = btn?.dataset?.rate_per_m3 || '';
+    document.getElementById('edit_amountInput').value  = btn?.dataset?.amount_due || '';
+
+    // Recompute to keep consistency
+    recompute(editModal);
+  });
+  bindLiveCompute(editModal);
+  bindCustomerMeterLink(editModal, 'edit');
+
+  /* ---------- SweetAlert2 Delete Confirm ---------- */
+  document.querySelectorAll(".btn-confirm-delete").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const form = btn.closest(".delete-form");
+      Swal.fire({
+        title: "Are you sure?",
+        text: "This action cannot be undone!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#2eaadf",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Yes, delete it!",
+        cancelButtonText: "Cancel"
+      }).then((result) => {
+        if (result.isConfirmed) form.submit();
+      });
+    });
+  });
+
+  /* ---------- Filters: auto-apply + counter + chevron (unchanged) ---------- */
+  const filtersForm = document.getElementById('filtersForm');
+  const collapseEl = document.getElementById('filtersCollapse');
+  const chevron = document.getElementById('filter-chevron');
+  const countEl = document.getElementById('filter-active-count');
+
+  function activeCount() {
+    const params = new FormData(filtersForm);
+    let c = 0;
+    if ((params.get('customer_id') || '').trim()) c++;
+    if ((params.get('date_from') || '').trim()) c++;
+    if ((params.get('date_to') || '').trim()) c++;
+    return c;
+  }
+  function updateCount() { countEl.textContent = activeCount(); }
+
+  filtersForm.querySelectorAll('select, input[type="date"]').forEach(el => {
+    el.addEventListener('change', () => {
+      updateCount();
+      filtersForm.submit();
+    });
+  });
+
+  collapseEl.addEventListener('shown.bs.collapse', () => { chevron.style.transform = 'rotate(180deg)'; });
+  collapseEl.addEventListener('hidden.bs.collapse', () => { chevron.style.transform = 'rotate(0deg)'; });
+  if (collapseEl.classList.contains('show')) { chevron.style.transform = 'rotate(180deg)'; }
+});
+</script>
 {% endblock %}
