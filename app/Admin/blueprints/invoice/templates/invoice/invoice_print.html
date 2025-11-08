@@ -1,71 +1,203 @@
 <!DOCTYPE html>
-<html>
+<html class="light" lang="en">
 <head>
-    <title>Invoice {{ invoice.invoice_no }}</title>
-    <style>
-        /* Put all your print-specific CSS here */
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            font-size: 12pt;
-        }
-        .container {
-            width: 800px;
-            margin: 0 auto;
-            padding: 30px;
-        }
-        h1 {
-            color: #333;
-            border-bottom: 2px solid #ccc;
-            padding-bottom: 10px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Water Supply Invoice</h1>
-        
-        <p>Invoice Number: **{{ invoice.invoice_no }}**</p>
-        <p>Date: **{{ invoice.date_created.strftime('%Y-%m-%d') }}**</p>
-        
-        <h2>Customer Details</h2>
-        <p>Name: {{ invoice.customer.customer_name }}</p>
-        <p>Address: {{ invoice.customer.address }}</p>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Invoice {{ inv.invoice_no }}</title>
 
-        <h2>Charges</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Description</th>
-                    <th>Quantity</th>
-                    <th>Price</th>
-                    <th>Total</th>
-                </tr>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    @media print {
+      body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .no-print {
+        display: none;
+      }
+      .print-p-0 {
+        padding: 0;
+      }
+      .print-shadow-none {
+        box-shadow: none !important;
+      }
+    }
+    body { min-height: max(884px, 100dvh); }
+  </style>
+
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#2eaadf",
+            "background-light": "#f8f9fa",
+            "background-dark": "#121c20",
+            "text-light": "#333333",
+            "text-dark": "#f0f0f0",
+            "border-light": "#E0E0E0",
+            "border-dark": "#3a4448",
+            "row-light": "#F5F5F5",
+            "row-dark": "#1a2428"
+          },
+          fontFamily: {
+            "display": ["Public Sans", "sans-serif"]
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          boxShadow: {
+            'paper': '0 4px 14px 0 rgba(0, 0, 0, 0.05)',
+          }
+        },
+      },
+    }
+  </script>
+</head>
+<body class="font-display bg-background-light dark:bg-background-dark">
+<div class="relative flex min-h-screen w-full flex-col text-text-light dark:text-text-dark overflow-x-hidden">
+
+  <!-- Top bar (back + download + print) -->
+  <div class="flex items-center bg-background-light dark:bg-background-dark p-4 justify-between border-b border-border-light dark:border-border-dark no-print">
+    <button class="flex items-center justify-center h-12 w-12 text-text-light dark:text-text-dark"
+            onclick="window.history.back()">
+      <span class="material-symbols-outlined text-2xl">arrow_back</span>
+    </button>
+
+    <h2 class="text-lg font-bold flex-1 text-center">Invoice {{ inv.invoice_no }}</h2>
+
+    <div class="flex items-center justify-end gap-1">
+      <!-- Download PDF (JS) -->
+      <button class="flex items-center justify-center h-12 w-12 text-text-light dark:text-text-dark"
+              onclick="downloadPDF()" title="Download PDF">
+        <span class="material-symbols-outlined text-2xl">download</span>
+      </button>
+
+      <!-- Print -->
+      <button class="flex items-center justify-center h-12 w-12 text-text-light dark:text-text-dark"
+              onclick="window.print()" title="Print">
+        <span class="material-symbols-outlined text-2xl">print</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="p-4 sm:p-6 print-p-0 flex-grow">
+    <!-- This is the area that will be converted to PDF -->
+    <div id="invoiceArea" class="max-w-3xl mx-auto bg-white dark:bg-background-dark p-6 sm:p-8 rounded-lg shadow-paper print-shadow-none">
+
+      <!-- Header / Company info -->
+      <div class="flex justify-between items-start mb-6">
+        <div class="flex items-center space-x-3">
+          <div class="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center">
+            <span class="material-symbols-outlined text-primary text-3xl">water_drop</span>
+          </div>
+        </div>
+        <div class="text-right text-xs text-slate-600 dark:text-slate-400">
+          <p class="font-bold text-base text-text-light dark:text-text-dark">WSMS</p>
+          <p>Water Supply Management System</p>
+          <!-- You can put your real address / email / phone here -->
+        </div>
+      </div>
+
+      <!-- Invoice details table -->
+      <div class="mb-6">
+        <h3 class="text-lg font-bold mb-3 text-primary">Invoice Details</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead class="text-xs text-slate-500 dark:text-slate-400 uppercase bg-row-light dark:bg-row-dark">
+              <tr>
+                <th class="px-4 py-3" scope="col">Invoice #</th>
+                <th class="px-4 py-3" scope="col">Customer Name</th>
+                <th class="px-4 py-3" scope="col">Due Date</th>
+                <th class="px-4 py-3 text-right" scope="col">Last Reading (m³)</th>
+                <th class="px-4 py-3 text-right" scope="col">Current Reading (m³)</th>
+                <th class="px-4 py-3 text-right" scope="col">Used (m³)</th>
+                <th class="px-4 py-3 text-right" scope="col">Amount</th>
+              </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>Water Meter Charge</td>
-                    <td>1</td>
-                    <td>$50.00</td>
-                    <td>$50.00</td>
-                </tr>
+              <tr class="border-b border-border-light dark:border-border-dark bg-white dark:bg-background-dark">
+                <td class="px-4 py-4 font-medium">{{ inv.invoice_no }}</td>
+                <td class="px-4 py-4">
+                  {{ cust.customer_name if cust else '' }}
+                </td>
+                <td class="px-4 py-4">
+                  {{ inv.due_date.strftime('%Y-%m-%d') if inv.due_date else '' }}
+                </td>
+                <td class="px-4 py-4 text-right">{{ '%.2f'|format(inv.last_read_m3 or 0) }}</td>
+                <td class="px-4 py-4 text-right">{{ '%.2f'|format(inv.current_read_m3 or 0) }}</td>
+                <td class="px-4 py-4 text-right">{{ '%.2f'|format(inv.used_water_m3 or 0) }}</td>
+                <td class="px-4 py-4 text-right">
+                  {{ '%.2f'|format(inv.amount or 0) }} {{ inv.currency or 'USD' }}
+                </td>
+              </tr>
             </tbody>
-        </table>
-        
-        <div style="margin-top: 30px; text-align: right;">
-            <strong>Grand Total: $50.00</strong>
+          </table>
         </div>
-    </div>
+      </div>
+
+      <!-- Total amount -->
+      <div class="bg-primary/20 rounded-xl p-5 text-center mb-6">
+        <p class="text-sm text-primary uppercase font-bold">Total Amount Due</p>
+        <p class="text-4xl font-bold text-primary tracking-tight mt-1">
+          {{ '%.2f'|format(inv.amount or 0) }} {{ inv.currency or 'USD' }}
+        </p>
+      </div>
+
+
+
+
+      <!-- Thank you + signatures -->
+      <div class="text-sm text-slate-600 dark:text-slate-400 mt-8">
+        <div class="text-center mb-8">
+          <p class="font-bold text-base text-primary">Thank you for being a valued customer!</p>
+          <p class="text-xs">Your timely payments help us maintain and improve our water services.</p>
+          <br>
+          <p>{{ today }}</p>
+        </div>
+
+
+        <div class="grid grid-cols-2 gap-8 pt-8 text-xs text-text-light dark:text-text-dark">
+          <div class="flex flex-col">
+            <div class="border-b border-border-light dark:border-border-dark pt-12"></div>
+            <p class="font-bold mt-2 text-center">Manager Signature</p>
+          </div>
+          <div class="flex flex-col">
+            <div class="border-b border-border-light dark:border-border-dark pt-12"></div>
+            <p class="font-bold mt-2 text-center">Billing Person Signature</p>
+          </div>
+        </div>
+      </div>
+
+    </div> <!-- /#invoiceArea -->
+  </div>
+</div>
+
+<!-- JS: html2pdf for client-side PDF download -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+  function downloadPDF() {
+    const element = document.getElementById('invoiceArea');
+    const opt = {
+      margin:       0.5,
+      filename:     '{{ inv.invoice_no }}.pdf',
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(element).save();
+  }
+</script>
+
 </body>
 </html>

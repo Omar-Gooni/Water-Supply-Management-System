@@ -383,3 +383,23 @@ def export_xlsx():
         download_name=fname,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+@invoice_bp.route("/admin/invoices/<int:invoice_id>/print")
+@login_required
+@role_required("Admin")
+def print_invoice(invoice_id):
+    inv = Invoice.query.get_or_404(invoice_id)
+    cust = inv.customer
+    reading = inv.reading
+    meter = reading.meter if (reading and hasattr(reading, "meter")) else None
+
+    return render_template(
+        "invoice/invoice_print.html",  # make sure filename matches
+        inv=inv,
+        cust=cust,
+        reading=reading,
+        meter=meter,
+        today  =_today(),
+    )
+
+

@@ -23,6 +23,7 @@ class Invoice(db.Model):
     due_date          = db.Column(db.Date, nullable=False)
     status            = db.Column(db.String(16), nullable=False, default="issued")  # issued/unpaid/paid/overdue
     currency          = db.Column(db.String(8), nullable=True)
+    
     remarks           = db.Column(db.String(255), nullable=True)
 
     # Relationships
