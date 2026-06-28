@@ -1,38 +1,293 @@
 {% extends 'layouts/base.html' %}
-{% block title %}
-  WSMS • Water Supply Management System
-{% endblock %}
+{% block title %}WSMS | Admin Dashboard{% endblock %}
 {% block content %}
-  <div class="row g-3">
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header">
-          <strong>Customers</strong>
+<div class="dashboard-shell">
+  <section class="dashboard-hero">
+    <div class="dashboard-hero-copy">
+      <p class="dashboard-eyebrow">Water Supply Management System</p>
+      <h1>Admin Dashboard</h1>
+      <p>
+        Live operational overview for customers, staff, meter activity, billing, and plant assets.
+      </p>
+    </div>
+    <div class="dashboard-actions">
+      <a href="{{ url_for('customer.list_customers') }}" class="btn btn-light btn-sm">Customers</a>
+      <a href="{{ url_for('staff_account.list_staff') }}" class="btn btn-outline-light btn-sm">Staff</a>
+      <a href="{{ url_for('invoice.list_invoices') }}" class="btn btn-outline-light btn-sm">Invoices</a>
+    </div>
+  </section>
+
+  <section class="row g-3 mt-1">
+    {% for stat in stats %}
+    <div class="col-sm-6 col-xl-4">
+      <div class="stat-card stat-card--{{ stat.variant }}">
+        <div class="stat-icon">
+          <i class="{{ stat.icon }}"></i>
         </div>
-        <div class="card-body">
-          <div class="display-6">120</div>
+        <div class="stat-copy">
+          <span class="stat-label">{{ stat.label }}</span>
+          <strong class="stat-value">{{ stat.value }}</strong>
+          <span class="stat-note">{{ stat.note }}</span>
         </div>
       </div>
     </div>
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header">
-          <strong>Connections</strong>
+    {% endfor %}
+  </section>
+
+  <section class="row g-3 mt-1">
+    <div class="col-xl-8">
+      <div class="dashboard-panel dashboard-panel--chart">
+        <div class="panel-header">
+          <div>
+            <h2>Billing overview</h2>
+            <p>Invoice status distribution in the system.</p>
+          </div>
+          <span class="panel-badge">Dynamic</span>
         </div>
-        <div class="card-body">
-          <div class="display-6">310</div>
+        <div class="panel-body panel-body--chart">
+          {% if invoice_chart['values'] %}
+          <div class="chart-wrap">
+            <canvas id="invoiceStatusChart"></canvas>
+          </div>
+          <div class="chart-legend">
+            {% for label in invoice_chart['labels'] %}
+            <div class="legend-item">
+              <span class="legend-dot legend-dot-{{ loop.index0 }}"></span>
+              <span>{{ label }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty-state">
+            <i class="fa-solid fa-chart-pie"></i>
+            <h3>No invoices yet</h3>
+            <p>Create the first invoice to see billing analytics here.</p>
+          </div>
+          {% endif %}
         </div>
       </div>
     </div>
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header">
-          <strong>Unpaid Bills</strong>
+
+    <div class="col-xl-4">
+      <div class="dashboard-panel h-100">
+        <div class="panel-header">
+          <div>
+            <h2>System snapshot</h2>
+            <p>Fast counts for core assets.</p>
+          </div>
         </div>
-        <div class="card-body">
-          <div class="display-6 text-danger">38</div>
+        <div class="panel-body">
+          <div class="snapshot-grid">
+            {% for item in system_snapshot %}
+            <div class="snapshot-item">
+              <div class="snapshot-icon">
+                <i class="fa-solid {{ item.icon }}"></i>
+              </div>
+              <div>
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  </section>
+
+  <section class="row g-3 mt-1">
+    <div class="col-lg-6">
+      <div class="dashboard-panel h-100">
+        <div class="panel-header">
+          <div>
+            <h2>Recent customers</h2>
+            <p>Latest registrations and onboarding activity.</p>
+          </div>
+          <a href="{{ url_for('customer.list_customers') }}">View all</a>
+        </div>
+        <div class="panel-body p-0">
+          <div class="table-responsive dashboard-table-wrap">
+            <table class="table dashboard-table mb-0">
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Type</th>
+                  <th>Service area</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for customer in recent_customers %}
+                <tr>
+                  <td>
+                    <div class="fw-semibold">{{ customer.customer_name }}</div>
+                    <small class="text-muted">{{ customer.customer_id }}</small>
+                  </td>
+                  <td>{{ customer.customer_type }}</td>
+                  <td>{{ customer.service_area.area_name if customer.service_area else 'N/A' }}</td>
+                  <td>
+                    {% set customer_status = customer.status|lower %}
+                    <span class="badge rounded-pill {{ 'text-bg-success' if customer_status == 'active' else 'text-bg-secondary' }}">
+                      {{ customer.status }}
+                    </span>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="4">
+                    <div class="empty-table">No customers found yet.</div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="dashboard-panel h-100">
+        <div class="panel-header">
+          <div>
+            <h2>Recent invoices</h2>
+            <p>Billing records that need attention.</p>
+          </div>
+          <a href="{{ url_for('invoice.list_invoices') }}">View all</a>
+        </div>
+        <div class="panel-body p-0">
+          <div class="table-responsive dashboard-table-wrap">
+            <table class="table dashboard-table mb-0">
+              <thead>
+                <tr>
+                  <th>Invoice</th>
+                  <th>Customer</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for invoice in recent_invoices %}
+                <tr>
+                  <td>
+                    <div class="fw-semibold">{{ invoice.invoice_no }}</div>
+                    <small class="text-muted">Due {{ invoice.due_date.strftime('%d %b %Y') if invoice.due_date else 'N/A' }}</small>
+                  </td>
+                  <td>{{ invoice.customer.customer_name if invoice.customer else 'N/A' }}</td>
+                  <td>{{ invoice.amount }}</td>
+                  <td>
+                    {% set invoice_status = invoice.status|lower %}
+                    <span class="badge rounded-pill {{ 'text-bg-success' if invoice_status == 'paid' else 'text-bg-warning' if invoice_status == 'unpaid' else 'text-bg-info' }}">
+                      {{ invoice.status|title }}
+                    </span>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="4">
+                    <div class="empty-table">No invoices found yet.</div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="row g-3 mt-1">
+    <div class="col-12">
+      <div class="dashboard-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Recent meter readings</h2>
+            <p>Latest consumption data captured in the field.</p>
+          </div>
+          <a href="{{ url_for('meter_reading.list_readings') }}">View all</a>
+        </div>
+        <div class="panel-body p-0">
+          <div class="table-responsive dashboard-table-wrap">
+            <table class="table dashboard-table mb-0">
+              <thead>
+                <tr>
+                  <th>Meter</th>
+                  <th>Customer</th>
+                  <th>Used m3</th>
+                  <th>Amount due</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for reading in recent_readings %}
+                <tr>
+                  <td>{{ reading.meter.meter_serial if reading.meter else 'N/A' }}</td>
+                  <td>{{ reading.customer.customer_name if reading.customer else 'N/A' }}</td>
+                  <td>{{ reading.used_water_m3 }}</td>
+                  <td>{{ reading.amount_due }}</td>
+                  <td>{{ reading.reading_date.strftime('%d %b %Y') if reading.reading_date else 'N/A' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="5">
+                    <div class="empty-table">No meter readings found yet.</div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
 {% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+  (function () {
+    const labels = {{ invoice_chart['labels']|tojson }};
+    const values = {{ invoice_chart['values']|tojson }};
+    const canvas = document.getElementById('invoiceStatusChart');
+
+    if (!canvas || !values.length) {
+      return;
+    }
+
+    new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          backgroundColor: ['#38bdf8', '#f59e0b', '#ef4444', '#22c55e'],
+          borderWidth: 0,
+          hoverOffset: 10
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '68%',
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                return ' ' + context.label + ': ' + context.raw;
+              }
+            }
+          }
+        }
+      }
+    });
+  })();
+</script>
+{% endblock %}
+
+

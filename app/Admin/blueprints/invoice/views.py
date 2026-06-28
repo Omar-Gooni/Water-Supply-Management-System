@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
 
-from datetime import date
+from datetime import date, timedelta
 import csv, io
 from openpyxl import Workbook 
 from app.extensions import db
@@ -16,6 +16,8 @@ from .models import Invoice
 
 
 invoice_bp = Blueprint("invoice", __name__, template_folder="templates")
+
+INVOICE_STATUSES = ("issued", "unpaid", "paid")
 
 
 # ----------------- helpers -----------------
@@ -74,22 +76,47 @@ def _customer_latest_reading_snapshot() -> dict[int, dict]:
         }
     return latest
 
-def _rollover_overdue(invoices: list[Invoice]) -> None:
-    """Flip unpaid -> overdue when due_date has passed for the listed invoices."""
-    today = _today()
-    changed = False
-    for inv in invoices:
-        if inv.status == "unpaid" and inv.due_date and inv.due_date < today:
-            inv.status = "overdue"
-            changed = True
-    if changed:
-        db.session.commit()
+def sync_invoice_from_reading(reading: MeterReading, *, status: str = "issued") -> Invoice:
+    """Create or update the invoice that belongs to a meter reading."""
+    issue_date = reading.reading_date or _today()
+    try:
+        period_start = issue_date.replace(day=1)
+    except ValueError:
+        period_start = issue_date
+    period_end = issue_date
+    due_date = issue_date + timedelta(days=14)
+
+    last_read = float(reading.last_read_m3 or 0)
+    current_read = float(reading.current_read_m3 or 0)
+    used_m3 = float(reading.used_water_m3 or max(0, current_read - last_read))
+    rate_m3 = float(reading.rate_per_m3 or 0.75)
+    amount = float(reading.amount_due or (used_m3 * rate_m3))
+
+    inv = Invoice.query.filter_by(reading_id=reading.id).first()
+    if inv is None:
+        inv = Invoice(reading_id=reading.id)
+        db.session.add(inv)
+
+    inv.customer_id = reading.customer_id
+    inv.period_start = period_start
+    inv.period_end = period_end
+    inv.last_read_m3 = last_read
+    inv.current_read_m3 = current_read
+    inv.used_water_m3 = used_m3
+    inv.rate_per_m3 = rate_m3
+    inv.amount = amount
+    inv.issue_date = issue_date
+    inv.due_date = due_date
+    if inv.status not in INVOICE_STATUSES:
+        inv.status = status
+
+    return inv
 
 def _apply_filters(q):
     """
     Filters for list + exports:
       - customer_id
-      - status (unpaid/paid/overdue/draft/void)
+      - status (issued/unpaid/paid)
       - invoice_no (contains)
       - issued_from / issued_to   (issue_date range)
       - period_from / period_to   (period range intersects)
@@ -165,8 +192,6 @@ def list_invoices():
     )
     invoices = pagination.items
 
-    # auto-update status to overdue if past due
-    _rollover_overdue(invoices)
 
     # dropdown + auto-fill map
     active_customers = Customer.query.filter(Customer.status == "active") \
@@ -191,73 +216,8 @@ def list_invoices():
 @login_required
 @role_required("Admin")
 def create_invoice():
-    # required selections
-    customer_id = request.form.get("customer_id", type=int)
-    if not customer_id:
-        flash("Customer is required.", "danger")
-        return redirect(url_for("invoice.list_invoices", **request.args))
-
-    # required dates
-    try:
-        issue_date   = date.fromisoformat(request.form.get("issue_date"))
-        due_date     = date.fromisoformat(request.form.get("due_date"))
-        period_start = date.fromisoformat(request.form.get("period_start"))
-        period_end   = date.fromisoformat(request.form.get("period_end"))
-    except Exception:
-        flash("Issue date, Due date, Period start and Period end are required and must be valid.", "danger")
-        return redirect(url_for("invoice.list_invoices", **request.args))
-
-    # validate ordering
-    if period_end < period_start:
-        flash("Period end cannot be before period start.", "danger")
-        return redirect(url_for("invoice.list_invoices", **request.args))
-    if due_date < issue_date:
-        flash("Due date cannot be before issue date.", "danger")
-        return redirect(url_for("invoice.list_invoices", **request.args))
-
-    # ---- Overlap check (same customer, any status) ----
-    existing = Invoice.query.filter(Invoice.customer_id == customer_id).all()
-    for inv in existing:
-        if _period_overlaps(period_start, period_end, inv.period_start, inv.period_end):
-            flash("This customer already has an invoice that overlaps the chosen period.", "danger")
-            return redirect(url_for("invoice.list_invoices", **request.args))
-
-    # snapshot values (read-only fields on form)
-    reading_id     = request.form.get("reading_id", type=int) or None
-    last_read      = float(request.form.get("last_read_m3") or 0)
-    current_read   = float(request.form.get("current_read_m3") or 0)
-    used_m3        = float(request.form.get("used_water_m3") or max(0, current_read - last_read))
-    rate_m3        = float(request.form.get("rate_per_m3") or 0.75)
-    amount         = float(request.form.get("amount") or (used_m3 * rate_m3))
-    currency       = (request.form.get("currency") or "").strip() or None
-    remarks        = (request.form.get("remarks") or "").strip() or None
-
-    # IMPORTANT: Do NOT set invoice_no here (model generates INV-0001 style)
-    inv = Invoice(
-        customer_id=customer_id,
-        reading_id=reading_id,
-        period_start=period_start,
-        period_end=period_end,
-        last_read_m3=last_read,
-        current_read_m3=current_read,
-        used_water_m3=used_m3,
-        rate_per_m3=rate_m3,
-        amount=amount,
-        issue_date=issue_date,
-        due_date=due_date,
-        status="unpaid",  # locked on create
-        currency=currency,
-        remarks=remarks,
-    )
-
-    db.session.add(inv)
-    db.session.commit()
-    flash(f"Invoice {inv.invoice_no} created (status: unpaid).", "success")
+    flash("Invoices are created automatically from meter readings.", "info")
     return redirect(url_for("invoice.list_invoices", **request.args))
-
-
-
-
 
 # ----------------- delete -----------------
 @invoice_bp.route("/admin/invoices/<int:invoice_id>/delete", methods=["POST"])

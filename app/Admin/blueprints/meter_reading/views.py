@@ -7,6 +7,8 @@ from openpyxl import Workbook
 from app.Auth.blueprints.auth.views import login_required, role_required
 from app.Admin.blueprints.customer.models import Customer
 from app.Admin.blueprints.meter.models import Meter
+from app.Admin.blueprints.invoice.models import Invoice
+from app.Admin.blueprints.invoice.views import sync_invoice_from_reading
 from .models import MeterReading
 
 meter_reading_bp = Blueprint("meter_reading", __name__, template_folder="templates")
@@ -97,8 +99,11 @@ def create_reading():
         return redirect(url_for("meter_reading.list_readings", **request.args))
 
     db.session.add(rec)
+    db.session.flush()
+    invoice = sync_invoice_from_reading(rec, status="issued")
+    db.session.flush()
     db.session.commit()
-    flash("Meter reading created.", "success")
+    flash(f"Meter reading created and invoice {invoice.invoice_no} generated.", "success")
     return redirect(url_for("meter_reading.list_readings", **request.args))
 
 # ---------- edit ----------
@@ -121,8 +126,9 @@ def edit_reading(rec_id):
         flash("Customer, Meter and Reading Date are required.", "danger")
         return redirect(url_for("meter_reading.list_readings", **request.args))
 
+    sync_invoice_from_reading(rec, status="issued")
     db.session.commit()
-    flash("Meter reading updated.", "success")
+    flash("Meter reading updated and invoice synchronized.", "success")
     return redirect(url_for("meter_reading.list_readings", **request.args))
 
 # ---------- delete ----------
@@ -131,6 +137,9 @@ def edit_reading(rec_id):
 @role_required("Admin")
 def delete_reading(rec_id):
     rec = MeterReading.query.get_or_404(rec_id)
+    inv = Invoice.query.filter_by(reading_id=rec.id).first()
+    if inv:
+        db.session.delete(inv)
     db.session.delete(rec)
     db.session.commit()
     flash("Meter reading deleted.", "info")
