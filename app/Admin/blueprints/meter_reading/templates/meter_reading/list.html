@@ -1,4 +1,4 @@
-{% extends 'layouts/base.html' %}
+﻿{% extends 'layouts/base.html' %}
 
 {% block title %}Meter Readings{% endblock %}
 
@@ -6,13 +6,12 @@
 <div class="container-fluid py-3">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <h4 class="mb-0">Meter Readings</h4>
-    <button class="btn btn-primary" id="newReadingBtn">
+    <button class="btn btn-primary" id="newReadingBtn" data-bs-toggle="modal" data-bs-target="#readingCreateModal">
       <i class="fa fa-plus me-1"></i> New Reading
     </button>
   </div>
 
   <!-- Date restriction message container -->
-  <div id="date-restriction-message"></div>
 
   {# Flash Messages #}
   {% with messages=get_flashed_messages(with_categories=true) %}
@@ -109,9 +108,9 @@
           <th>Date</th>
           <th>Customer</th>
           <th>Meter</th>
-          <th>Last (m³)</th>
-          <th>Current (m³)</th>
-          <th>Used (m³)</th>
+          <th>Last (mÂ³)</th>
+          <th>Current (mÂ³)</th>
+          <th>Used (mÂ³)</th>
           <th>Rate</th>
           <th>Amount</th>
           <th class="text-end">Actions</th>
@@ -239,22 +238,22 @@
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Last (m³)</label>
+              <label class="form-label">Last (mÂ³)</label>
               <input name="last_read_m3" id="create_lastInput" type="number" step="0.01" class="form-control form-control-sm">
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Current (m³)</label>
+              <label class="form-label">Current (mÂ³)</label>
               <input name="current_read_m3" id="create_currentInput" type="number" step="0.01" class="form-control form-control-sm">
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Used (m³)</label>
+              <label class="form-label">Used (mÂ³)</label>
               <input name="used_water_m3" id="create_usedInput" type="number" step="0.01" class="form-control form-control-sm" readonly>
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Rate per m³</label>
+              <label class="form-label">Rate per mÂ³</label>
               <input name="rate_per_m3" id="create_rateInput" type="number" step="0.01" class="form-control form-control-sm">
             </div>
 
@@ -311,22 +310,22 @@
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Last (m³)</label>
+              <label class="form-label">Last (mÂ³)</label>
               <input name="last_read_m3" id="edit_lastInput" type="number" step="0.01" class="form-control form-control-sm">
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Current (m³)</label>
+              <label class="form-label">Current (mÂ³)</label>
               <input name="current_read_m3" id="edit_currentInput" type="number" step="0.01" class="form-control form-control-sm">
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Used (m³)</label>
+              <label class="form-label">Used (mÂ³)</label>
               <input name="used_water_m3" id="edit_usedInput" type="number" step="0.01" class="form-control form-control-sm" readonly>
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Rate per m³</label>
+              <label class="form-label">Rate per mÂ³</label>
               <input name="rate_per_m3" id="edit_rateInput" type="number" step="0.01" class="form-control form-control-sm">
             </div>
 
@@ -387,50 +386,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // /* ---------- Create Modal with Date Restriction ---------- */
+  /* ---------- Create Modal ---------- */
 
-  document.getElementById('newReadingBtn').addEventListener('click', function(e) {
-    const today = new Date();
-    const currentDay = today.getDate();
-    
-    // Check if today's date is NOT between 10th and 15th
-    if (!(currentDay >= 2 && currentDay <= 5)) {
-        // Show message under the button
-        const messageHtml = `
-            <div class="alert alert-danger border-0 alert-dismissible fade show mt-2" role="alert">
-                <i class="fa fa-exclamation-triangle me-2"></i>
-                Readings can only be created between 2th and 5th of the month
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        `;
-        
-        document.getElementById('date-restriction-message').innerHTML = messageHtml;
-          // Hide message after  seconds
-        setTimeout(() => {
-            document.getElementById('date-restriction-message').innerHTML = '';
-        }, 7000);
-        return false;
-    } else {
-        // Clear any previous restriction messages
-        document.getElementById('date-restriction-message').innerHTML = '';
-        
-        // Setup modal
-        const createModal = document.getElementById('readingCreateModal');
-        createModal.addEventListener('show.bs.modal', () => {
-            const form = document.getElementById('readingCreateForm');
-            form.reset();
-            document.getElementById('create_meterDisplay').value = '';
-            document.getElementById('create_meterIdInput').value = '';
-        });
-        bindLiveCompute(createModal);
-        bindCustomerMeterLink(createModal, 'create');
-        
-        // MANUALLY open the modal
-        const modal = new bootstrap.Modal(createModal);
-        modal.show();
-    }
-});
-
+  const createModal = document.getElementById('readingCreateModal');
+  createModal.addEventListener('show.bs.modal', () => {
+    const form = document.getElementById('readingCreateForm');
+    form.reset();
+    document.getElementById('create_meterDisplay').value = '';
+    document.getElementById('create_meterIdInput').value = '';
+    document.getElementById('create_usedInput').value = '';
+    document.getElementById('create_amountInput').value = '';
+  });
+  bindLiveCompute(createModal);
+  bindCustomerMeterLink(createModal, 'create');
   /* ---------- Edit Modal ---------- */
   const editModal = document.getElementById('readingEditModal');
   editModal.addEventListener('show.bs.modal', (event) => {
@@ -515,3 +483,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 {% endblock %}
+
