@@ -4,12 +4,13 @@ class Config:
     # Flask
     SECRET_KEY = os.environ.get("SECRET_KEY", "supersecretkey")
 
-    # MySQL (Workbench) → SQLAlchemy URI
+    # MySQL (Workbench) -> SQLAlchemy URI
     MYSQL_HOST = os.environ.get("MYSQL_HOST", "localhost")
     MYSQL_PORT = int(os.environ.get("MYSQL_PORT", 3306))
     MYSQL_USER = os.environ.get("MYSQL_USER", "root")
     MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "Gooni218282")
-    MYSQL_DB = os.environ.get("MYSQL_DB", "wsms")
+    MYSQL_DB = os.environ.get("MYSQL_DB", "water_supplay")
+    WATER_RATE_PER_M3 = float(os.environ.get("WATER_RATE_PER_M3", 0.75))
 
     SQLALCHEMY_DATABASE_URI = (
         f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}"

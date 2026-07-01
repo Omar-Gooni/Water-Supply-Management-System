@@ -9,9 +9,11 @@ from app.Admin.blueprints.customer.models import Customer
 from app.Admin.blueprints.meter.models import Meter
 from app.Admin.blueprints.invoice.models import Invoice
 from app.Admin.blueprints.invoice.views import sync_invoice_from_reading
+from app.utils.billing import calculate_reading_values, customer_reading_snapshot, get_default_water_rate
 from .models import MeterReading
 
 meter_reading_bp = Blueprint("meter_reading", __name__, template_folder="templates")
+
 
 # ---------- helpers ----------
 def _to_date(s):
@@ -21,6 +23,7 @@ def _to_date(s):
         return datetime.strptime(s, "%Y-%m-%d").date()
     except ValueError:
         return None
+
 
 def _apply_filters(q):
     customer_id = request.args.get("customer_id", type=int)
@@ -39,6 +42,11 @@ def _apply_filters(q):
             q = q.filter(MeterReading.reading_date <= d2)
     return q
 
+
+def _meter_for_customer(customer_id: int):
+    return Meter.query.filter(Meter.customer_id == customer_id).order_by(Meter.id.asc()).first()
+
+
 # ---------- list (with pagination) ----------
 @meter_reading_bp.route("/admin/meter-readings")
 @login_required
@@ -55,13 +63,9 @@ def list_readings():
     pagination = db.paginate(query, page=page, per_page=per_page, error_out=False, max_per_page=100)
     items = pagination.items
 
-    # dropdown: only ACTIVE customers (as you wanted earlier)
     active_customers = Customer.query.filter(Customer.status == "active") \
                         .order_by(Customer.customer_name.asc()).all()
 
-    # --- NEW: build mapping customer_id -> {id, serial} from Meter table ---
-    # You asked: when selecting a customer, auto-fill its meter and make it read-only,
-    # regardless of meter status. So we take the first meter found for each customer.
     meters = Meter.query.order_by(Meter.id.asc()).all()
     customer_to_meter = {}
     for m in meters:
@@ -75,28 +79,52 @@ def list_readings():
         per_page=per_page,
         allowed_per_page=sorted(allowed_per_page),
         active_customers=active_customers,
-        customer_to_meter=customer_to_meter,  # <-- make it available to Jinja
+        customer_to_meter=customer_to_meter,
+        customer_latest=customer_reading_snapshot(),
+        default_rate=get_default_water_rate(),
     )
+
 
 # ---------- create ----------
 @meter_reading_bp.route("/admin/meter-readings/new", methods=["POST"])
 @login_required
 @role_required("Admin")
 def create_reading():
-    rec = MeterReading(
-        customer_id     = request.form.get("customer_id", type=int),
-        meter_id        = request.form.get("meter_id", type=int),
-        reading_date    = _to_date(request.form.get("reading_date")),
-        last_read_m3    = request.form.get("last_read_m3") or None,
-        current_read_m3 = request.form.get("current_read_m3") or None,
-        used_water_m3   = request.form.get("used_water_m3") or None,
-        rate_per_m3     = request.form.get("rate_per_m3") or None,
-        amount_due      = request.form.get("amount_due") or None,
+    customer_id = request.form.get("customer_id", type=int)
+    meter_id = request.form.get("meter_id", type=int)
+    reading_date = _to_date(request.form.get("reading_date"))
+    current_read = request.form.get("current_read_m3", type=float)
+
+    if not customer_id or not reading_date or current_read is None:
+        flash("Customer, Reading Date and Current reading are required.", "danger")
+        return redirect(url_for("meter_reading.list_readings", **request.args))
+
+    if not meter_id:
+        meter = _meter_for_customer(customer_id)
+        meter_id = meter.id if meter else None
+
+    if not meter_id:
+        flash("Please assign a meter to this customer first.", "danger")
+        return redirect(url_for("meter_reading.list_readings", **request.args))
+
+    rate_override = request.form.get("rate_per_m3")
+    last_read, rate_per_m3, used_water_m3, amount_due = calculate_reading_values(
+        customer_id,
+        current_read,
+        rate_override=rate_override,
+        allow_rate_override=True,
     )
 
-    if not rec.customer_id or not rec.meter_id or not rec.reading_date:
-        flash("Customer, Meter and Reading Date are required.", "danger")
-        return redirect(url_for("meter_reading.list_readings", **request.args))
+    rec = MeterReading(
+        customer_id=customer_id,
+        meter_id=meter_id,
+        reading_date=reading_date,
+        last_read_m3=last_read,
+        current_read_m3=current_read,
+        used_water_m3=used_water_m3,
+        rate_per_m3=rate_per_m3,
+        amount_due=amount_due,
+    )
 
     db.session.add(rec)
     db.session.flush()
@@ -106,6 +134,7 @@ def create_reading():
     flash(f"Meter reading created and invoice {invoice.invoice_no} generated.", "success")
     return redirect(url_for("meter_reading.list_readings", **request.args))
 
+
 # ---------- edit ----------
 @meter_reading_bp.route("/admin/meter-readings/<int:rec_id>/edit", methods=["POST"])
 @login_required
@@ -113,23 +142,46 @@ def create_reading():
 def edit_reading(rec_id):
     rec = MeterReading.query.get_or_404(rec_id)
 
-    rec.customer_id     = request.form.get("customer_id", type=int)
-    rec.meter_id        = request.form.get("meter_id", type=int)
-    rec.reading_date    = _to_date(request.form.get("reading_date"))
-    rec.last_read_m3    = request.form.get("last_read_m3") or None
-    rec.current_read_m3 = request.form.get("current_read_m3") or None
-    rec.used_water_m3   = request.form.get("used_water_m3") or None
-    rec.rate_per_m3     = request.form.get("rate_per_m3") or None
-    rec.amount_due      = request.form.get("amount_due") or None
+    customer_id = request.form.get("customer_id", type=int)
+    meter_id = request.form.get("meter_id", type=int)
+    reading_date = _to_date(request.form.get("reading_date"))
+    current_read = request.form.get("current_read_m3", type=float)
 
-    if not rec.customer_id or not rec.meter_id or not rec.reading_date:
-        flash("Customer, Meter and Reading Date are required.", "danger")
+    if not customer_id or not reading_date or current_read is None:
+        flash("Customer, Reading Date and Current reading are required.", "danger")
         return redirect(url_for("meter_reading.list_readings", **request.args))
+
+    if not meter_id:
+        meter = _meter_for_customer(customer_id)
+        meter_id = meter.id if meter else None
+
+    if not meter_id:
+        flash("Please assign a meter to this customer first.", "danger")
+        return redirect(url_for("meter_reading.list_readings", **request.args))
+
+    rate_override = request.form.get("rate_per_m3")
+    last_read, rate_per_m3, used_water_m3, amount_due = calculate_reading_values(
+        customer_id,
+        current_read,
+        exclude_reading_id=rec.id,
+        rate_override=rate_override,
+        allow_rate_override=True,
+    )
+
+    rec.customer_id = customer_id
+    rec.meter_id = meter_id
+    rec.reading_date = reading_date
+    rec.last_read_m3 = last_read
+    rec.current_read_m3 = current_read
+    rec.used_water_m3 = used_water_m3
+    rec.rate_per_m3 = rate_per_m3
+    rec.amount_due = amount_due
 
     sync_invoice_from_reading(rec, status="issued")
     db.session.commit()
     flash("Meter reading updated and invoice synchronized.", "success")
     return redirect(url_for("meter_reading.list_readings", **request.args))
+
 
 # ---------- delete ----------
 @meter_reading_bp.route("/admin/meter-readings/<int:rec_id>/delete", methods=["POST"])
@@ -144,6 +196,7 @@ def delete_reading(rec_id):
     db.session.commit()
     flash("Meter reading deleted.", "info")
     return redirect(url_for("meter_reading.list_readings", **request.args))
+
 
 # ---------- exports (respect filters) ----------
 @meter_reading_bp.route("/admin/meter-readings/export.csv")
@@ -179,6 +232,7 @@ def export_csv():
     fname = f"meter_readings_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     resp.headers["Content-Disposition"] = f'attachment; filename="{fname}"'
     return resp
+
 
 @meter_reading_bp.route("/admin/meter-readings/export.xlsx")
 @login_required

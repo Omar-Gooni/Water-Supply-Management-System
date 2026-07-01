@@ -1,0 +1,111 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Staff Customers{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <h4 class="mb-0">Customers</h4>
+      <div class="text-muted">Showing customers in your service area{% if service_area_name %}: {{ service_area_name }}{% endif %}</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('staff_main.staff_profile') }}" class="btn btn-outline-primary btn-sm">My Profile</a>
+    </div>
+  </div>
+
+  {% with messages=get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <form method="GET" class="row g-2 align-items-end mb-3">
+    <div class="col-md-6 col-lg-4">
+      <label class="form-label mb-1">Search</label>
+      <input type="text" name="q" class="form-control form-control-sm" placeholder="Name / Phone / Customer ID" value="{{ q_text or '' }}">
+    </div>
+    <div class="col-md-3 col-lg-2">
+      <label class="form-label mb-1">Rows</label>
+      <select name="per_page" class="form-select form-select-sm" onchange="this.form.submit()">
+        {% for n in allowed_per_page %}
+          <option value="{{ n }}" {{ 'selected' if per_page == n else '' }}>{{ n }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3 col-lg-2">
+      <button type="submit" class="btn btn-primary btn-sm w-100">Filter</button>
+    </div>
+    <div class="col-md-3 col-lg-2">
+      <a href="{{ url_for('staff_customer.list_customers') }}" class="btn btn-secondary btn-sm w-100">Reset</a>
+    </div>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table table-striped table-hover align-middle table-sm">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Customer ID</th>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Service Area</th>
+          <th>Supply Line</th>
+          <th>Phone</th>
+          <th>Created</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in customers %}
+          <tr>
+            <td>{{ c.id }}</td>
+            <td><span class="badge bg-light text-dark">{{ c.customer_id }}</span></td>
+            <td>{{ c.customer_name }}</td>
+            <td>{{ c.customer_type|capitalize }}</td>
+            <td>{{ c.service_area.area_name if c.service_area else c.service_area_id }}</td>
+            <td>{{ c.supply_line.line_name if c.supply_line else c.supply_line_id }}</td>
+            <td>{{ c.phone or '' }}</td>
+            <td>{{ c.created_date or '' }}</td>
+            <td>{{ c.status|capitalize }}</td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="9" class="text-center text-muted">No customers found</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pagination.pages > 1 %}
+  <nav aria-label="Pagination" class="mt-2">
+    <ul class="pagination pagination-sm justify-content-end mb-0">
+      <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+        <a class="page-link" href="{{ url_for('staff_customer.list_customers', q=q_text, per_page=per_page, page=1) }}">First</a>
+      </li>
+      <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+        <a class="page-link" href="{{ url_for('staff_customer.list_customers', q=q_text, per_page=per_page, page=pagination.prev_num or 1) }}">&laquo;</a>
+      </li>
+      {% for p in range(max(1, pagination.page - 2), min(pagination.pages, pagination.page + 2) + 1) %}
+        <li class="page-item {{ 'active' if p == pagination.page }}">
+          <a class="page-link" href="{{ url_for('staff_customer.list_customers', q=q_text, per_page=per_page, page=p) }}">{{ p }}</a>
+        </li>
+      {% endfor %}
+      <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+        <a class="page-link" href="{{ url_for('staff_customer.list_customers', q=q_text, per_page=per_page, page=pagination.next_num or pagination.pages) }}">&raquo;</a>
+      </li>
+      <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+        <a class="page-link" href="{{ url_for('staff_customer.list_customers', q=q_text, per_page=per_page, page=pagination.pages) }}">Last</a>
+      </li>
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}
+

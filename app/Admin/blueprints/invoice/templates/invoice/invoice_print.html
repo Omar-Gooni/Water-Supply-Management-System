@@ -67,7 +67,6 @@
 <body class="font-display bg-background-light dark:bg-background-dark">
 <div class="relative flex min-h-screen w-full flex-col text-text-light dark:text-text-dark overflow-x-hidden">
 
-  <!-- Top bar (back + download + print) -->
   <div class="flex items-center bg-background-light dark:bg-background-dark p-4 justify-between border-b border-border-light dark:border-border-dark no-print">
     <button class="flex items-center justify-center h-12 w-12 text-text-light dark:text-text-dark"
             onclick="window.history.back()">
@@ -77,13 +76,11 @@
     <h2 class="text-lg font-bold flex-1 text-center">Invoice {{ inv.invoice_no }}</h2>
 
     <div class="flex items-center justify-end gap-1">
-      <!-- Download PDF (JS) -->
       <button class="flex items-center justify-center h-12 w-12 text-text-light dark:text-text-dark"
               onclick="downloadPDF()" title="Download PDF">
         <span class="material-symbols-outlined text-2xl">download</span>
       </button>
 
-      <!-- Print -->
       <button class="flex items-center justify-center h-12 w-12 text-text-light dark:text-text-dark"
               onclick="window.print()" title="Print">
         <span class="material-symbols-outlined text-2xl">print</span>
@@ -92,10 +89,8 @@
   </div>
 
   <div class="p-4 sm:p-6 print-p-0 flex-grow">
-    <!-- This is the area that will be converted to PDF -->
     <div id="invoiceArea" class="max-w-3xl mx-auto bg-white dark:bg-background-dark p-6 sm:p-8 rounded-lg shadow-paper print-shadow-none">
 
-      <!-- Header / Company info -->
       <div class="flex justify-between items-start mb-6">
         <div class="flex items-center space-x-3">
           <div class="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center">
@@ -105,11 +100,9 @@
         <div class="text-right text-xs text-slate-600 dark:text-slate-400">
           <p class="font-bold text-base text-text-light dark:text-text-dark">WSMS</p>
           <p>Water Supply Management System</p>
-          <!-- You can put your real address / email / phone here -->
         </div>
       </div>
 
-      <!-- Invoice details table -->
       <div class="mb-6">
         <h3 class="text-lg font-bold mb-3 text-primary">Invoice Details</h3>
         <div class="overflow-x-auto">
@@ -119,45 +112,32 @@
                 <th class="px-4 py-3" scope="col">Invoice #</th>
                 <th class="px-4 py-3" scope="col">Customer Name</th>
                 <th class="px-4 py-3" scope="col">Due Date</th>
-                <th class="px-4 py-3 text-right" scope="col">Last Reading (m³)</th>
-                <th class="px-4 py-3 text-right" scope="col">Current Reading (m³)</th>
-                <th class="px-4 py-3 text-right" scope="col">Used (m³)</th>
+                <th class="px-4 py-3 text-right" scope="col">Last Reading (m3)</th>
+                <th class="px-4 py-3 text-right" scope="col">Current Reading (m3)</th>
+                <th class="px-4 py-3 text-right" scope="col">Used (m3)</th>
                 <th class="px-4 py-3 text-right" scope="col">Amount</th>
               </tr>
             </thead>
             <tbody>
               <tr class="border-b border-border-light dark:border-border-dark bg-white dark:bg-background-dark">
                 <td class="px-4 py-4 font-medium">{{ inv.invoice_no }}</td>
-                <td class="px-4 py-4">
-                  {{ cust.customer_name if cust else '' }}
-                </td>
-                <td class="px-4 py-4">
-                  {{ inv.due_date.strftime('%Y-%m-%d') if inv.due_date else '' }}
-                </td>
+                <td class="px-4 py-4">{{ cust.customer_name if cust else '' }}</td>
+                <td class="px-4 py-4">{{ inv.due_date.strftime('%Y-%m-%d') if inv.due_date else '' }}</td>
                 <td class="px-4 py-4 text-right">{{ '%.2f'|format(inv.last_read_m3 or 0) }}</td>
                 <td class="px-4 py-4 text-right">{{ '%.2f'|format(inv.current_read_m3 or 0) }}</td>
                 <td class="px-4 py-4 text-right">{{ '%.2f'|format(inv.used_water_m3 or 0) }}</td>
-                <td class="px-4 py-4 text-right">
-                  {{ '%.2f'|format(inv.amount or 0) }} {{ inv.currency or 'USD' }}
-                </td>
+                <td class="px-4 py-4 text-right">{{ '%.2f'|format(inv.amount or 0) }} {{ inv.currency or 'USD' }}</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- Total amount -->
       <div class="bg-primary/20 rounded-xl p-5 text-center mb-6">
         <p class="text-sm text-primary uppercase font-bold">Total Amount Due</p>
-        <p class="text-4xl font-bold text-primary tracking-tight mt-1">
-          {{ '%.2f'|format(inv.amount or 0) }} {{ inv.currency or 'USD' }}
-        </p>
+        <p class="text-4xl font-bold text-primary tracking-tight mt-1">{{ '%.2f'|format(inv.amount or 0) }} {{ inv.currency or 'USD' }}</p>
       </div>
 
-
-
-
-      <!-- Thank you + signatures -->
       <div class="text-sm text-slate-600 dark:text-slate-400 mt-8">
         <div class="text-center mb-8">
           <p class="font-bold text-base text-primary">Thank you for being a valued customer!</p>
@@ -165,7 +145,6 @@
           <br>
           <p>{{ today }}</p>
         </div>
-
 
         <div class="grid grid-cols-2 gap-8 pt-8 text-xs text-text-light dark:text-text-dark">
           <div class="flex flex-col">
@@ -179,21 +158,20 @@
         </div>
       </div>
 
-    </div> <!-- /#invoiceArea -->
+    </div>
   </div>
 </div>
 
-<!-- JS: html2pdf for client-side PDF download -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
   function downloadPDF() {
     const element = document.getElementById('invoiceArea');
     const opt = {
-      margin:       0.5,
-      filename:     '{{ inv.invoice_no }}.pdf',
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true },
-      jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+      margin: 0.5,
+      filename: '{{ inv.invoice_no }}.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
     };
     html2pdf().set(opt).from(element).save();
   }

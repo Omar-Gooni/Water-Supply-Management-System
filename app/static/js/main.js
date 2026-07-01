@@ -1,4 +1,4 @@
-// ================== WSMS Sidebar Toggle (FULL with overlay + logs) ==================
+﻿// ================== WSMS Sidebar Toggle (FULL with overlay + logs) ==================
 document.addEventListener('DOMContentLoaded', function () {
   console.log('[WSMS] DOMContentLoaded fired');
 
@@ -39,6 +39,16 @@ document.addEventListener('DOMContentLoaded', function () {
     console.log('[WSMS] Applied mobile default: collapsed');
   };
 
+  const syncOpenSubmenus = () => {
+    document.querySelectorAll('.sidebar .submenu.open').forEach((submenu) => {
+      submenu.style.maxHeight = submenu.scrollHeight + 'px';
+      const toggle = submenu.previousElementSibling;
+      if (toggle && toggle.classList.contains('js-submenu-toggle')) {
+        toggle.classList.add('open');
+      }
+    });
+  };
+
   // Init: set correct state based on screen size
   const initState = () => {
     if (isMobile()) {
@@ -47,6 +57,7 @@ document.addEventListener('DOMContentLoaded', function () {
       applyDesktopStateFromStorage();
     }
     syncAria();
+    syncOpenSubmenus();
   };
 
   // Update ARIA
@@ -113,6 +124,7 @@ document.addEventListener('DOMContentLoaded', function () {
         applyDesktopStateFromStorage();
       }
       syncAria();
+      syncOpenSubmenus();
     }, 120);
   });
 
@@ -160,6 +172,14 @@ document.addEventListener("DOMContentLoaded", function() {
         }
       }
     });
+  });
+
+  document.querySelectorAll(".sidebar .submenu.open").forEach(submenu => {
+    submenu.style.maxHeight = submenu.scrollHeight + "px";
+    const toggle = submenu.previousElementSibling;
+    if (toggle && toggle.classList.contains("js-submenu-toggle")) {
+      toggle.classList.add("open");
+    }
   });
 
 });

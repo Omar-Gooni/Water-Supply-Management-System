@@ -1,0 +1,115 @@
+﻿{% extends 'layouts/base.html' %}
+{% block title %}WSMS | {{ report_title }}{% endblock %}
+{% block content %}
+<div class="report-shell">
+  <section class="dashboard-panel report-filter-panel">
+    <div class="panel-header">
+      <div>
+        <h2>Filters</h2>
+        <p>Choose a date range and any extra filters, then generate the report.</p>
+      </div>
+      <span class="panel-badge">{{ row_count }} rows</span>
+    </div>
+    <div class="panel-body">
+      <form method="get" class="report-filter-form">
+        <div class="row g-3">
+          <div class="col-lg-3 col-md-4">
+            <label class="form-label">From {{ filter_label }}</label>
+            <input type="date" name="from_date" class="form-control" value="{{ from_date }}">
+          </div>
+          <div class="col-lg-3 col-md-4">
+            <label class="form-label">To {{ filter_label }}</label>
+            <input type="date" name="to_date" class="form-control" value="{{ to_date }}">
+          </div>
+          {% for field in filter_fields %}
+          <div class="col-lg-3 col-md-4">
+            <label class="form-label">{{ field.label }}</label>
+            {% if field.type == 'select' %}
+            <select name="{{ field.name }}" class="form-select">
+              {% for option in field.options %}
+              <option value="{{ option.value }}" {% if option.value|string == field.value|string %}selected{% endif %}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <input type="{{ field.type }}" name="{{ field.name }}" class="form-control" value="{{ field.value }}" placeholder="{{ field.placeholder|default('', true) }}">
+            {% endif %}
+          </div>
+          {% endfor %}
+          <div class="col-12">
+            <div class="report-filter-actions d-flex flex-wrap gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-filter me-1"></i> Generate Report
+              </button>
+              <a href="{{ url_for(current_report) }}" class="btn btn-outline-secondary">Clear</a>
+              <a href="{{ export_csv_url }}" class="btn btn-outline-success">
+                <i class="fa-solid fa-file-csv me-1"></i> CSV
+              </a>
+              <a href="{{ export_xlsx_url }}" class="btn btn-outline-success">
+                <i class="fa-solid fa-file-excel me-1"></i> Excel
+              </a>
+              <a href="{{ print_url }}" class="btn btn-outline-dark">
+                <i class="fa-solid fa-print me-1"></i> Print / PDF
+              </a>
+            </div>
+          </div>
+        </div>
+      </form>
+      {% if filter_summary %}
+      <div class="report-filter-summary mt-3">
+        {% for item in filter_summary %}
+        <span class="report-summary-chip"><strong>{{ item.label }}:</strong> {{ item.value }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <p class="report-filter-note mb-0 mt-3">Showing {{ result_range }}.</p>
+    </div>
+  </section>
+
+  <section class="dashboard-panel">
+    <div class="panel-header">
+      <div>
+        <h2>{{ table_title }}</h2>
+        <p>{{ table_note }}</p>
+      </div>
+      <span class="panel-badge">{{ row_count }} rows</span>
+    </div>
+    <div class="panel-body p-0">
+      <div class="table-responsive report-table-wrap">
+        <table class="table report-table mb-0">
+          <thead>
+            <tr>
+              {% for column in table_columns %}
+              <th class="text-{{ column.align or 'start' }}">{{ column.label }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% if table_rows %}
+            {% for row in table_rows %}
+            <tr>
+              {% for column in table_columns %}
+              <td class="text-{{ column.align or 'start' }}">{{ row[column.key] }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+            {% else %}
+            <tr>
+              <td colspan="{{ table_columns|length }}">
+                <div class="empty-table py-5">
+                  <i class="fa-solid fa-folder-open"></i>
+                  <h3>{{ empty_message }}</h3>
+                </div>
+              </td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+
+
+

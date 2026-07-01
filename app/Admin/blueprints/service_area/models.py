@@ -1,6 +1,7 @@
-# app/Admin/blueprints/service_area/models.py
+﻿from datetime import date
 from app.extensions import db
 from sqlalchemy import event
+
 
 class ServiceArea(db.Model):
     __tablename__ = "service_areas"
@@ -8,10 +9,12 @@ class ServiceArea(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     area_code = db.Column(db.String(20), unique=True, index=True)
     area_name = db.Column(db.String(120), nullable=False)
+    created_date = db.Column(db.Date, nullable=False, default=date.today)
     remarks = db.Column(db.Text)
 
     def __repr__(self):
         return f"<ServiceArea {self.area_code} - {self.area_name}>"
+
 
 # ---------- Auto-generate area_code ----------
 @event.listens_for(ServiceArea, "before_insert")

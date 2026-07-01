@@ -1,0 +1,30 @@
+﻿{% extends 'layouts/base.html' %}
+{% block title %}WSMS | Reports{% endblock %}
+{% block content %}
+<div class="report-shell">
+  <section class="dashboard-panel">
+    <div class="panel-header">
+      <div>
+        <h2>Available Reports</h2>
+        <p>Each report supports date ranges, extra filters, CSV export, Excel export, and a print-ready preview.</p>
+      </div>
+      <span class="panel-badge">9 reports</span>
+    </div>
+    <div class="panel-body">
+      <div class="report-link-grid">
+        {% for link in quick_links %}
+        <a href="{{ url_for(link.endpoint) }}" class="report-link-card">
+          <span class="report-link-icon"><i class="{{ link.icon }}"></i></span>
+          <span class="report-link-copy">
+            <strong>{{ link.label }}</strong>
+            <small>{{ link.description }}</small>
+          </span>
+          <i class="fa-solid fa-arrow-right report-link-arrow"></i>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+

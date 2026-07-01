@@ -32,7 +32,7 @@ def admin_dashboard():
     total_meters = Meter.query.count()
     active_meters = Meter.query.filter(Meter.status == "Active").count()
     total_invoices = Invoice.query.count()
-    unpaid_invoices = Invoice.query.filter(Invoice.status.in_(("issued", "unpaid"))).count()
+    unpaid_invoices = Invoice.query.filter(Invoice.status.in_(("issued", "unpaid", "partial"))).count()
     total_sources = WaterSource.query.count()
     total_tanks = StorageTank.query.count()
     total_pipelines = Pipeline.query.count()
@@ -46,7 +46,7 @@ def admin_dashboard():
         .group_by(Invoice.status)
         .all()
     )
-    invoice_status_order = ["issued", "unpaid", "paid"]
+    invoice_status_order = ["issued", "unpaid", "partial", "paid"]
     invoice_status_map = {
         status.lower(): count
         for status, count in invoice_status_rows
@@ -56,10 +56,6 @@ def admin_dashboard():
         "labels": [status.title() for status in invoice_status_order if invoice_status_map.get(status)],
         "values": [invoice_status_map.get(status, 0) for status in invoice_status_order if invoice_status_map.get(status)],
     }
-
-    recent_customers = Customer.query.order_by(Customer.created_date.desc(), Customer.id.desc()).limit(5).all()
-    recent_invoices = Invoice.query.order_by(Invoice.issue_date.desc(), Invoice.id.desc()).limit(5).all()
-    recent_readings = MeterReading.query.order_by(MeterReading.reading_date.desc(), MeterReading.id.desc()).limit(5).all()
 
     stats = [
         {
@@ -106,21 +102,10 @@ def admin_dashboard():
         },
     ]
 
-    system_snapshot = [
-        {"label": "Service areas", "value": total_service_areas, "icon": "fa-map-location-dot"},
-        {"label": "Water sources", "value": total_sources, "icon": "fa-water"},
-        {"label": "Storage tanks", "value": total_tanks, "icon": "fa-database"},
-        {"label": "Pipelines", "value": total_pipelines, "icon": "fa-ruler-horizontal"},
-        {"label": "Meter readings", "value": total_readings, "icon": "fa-tachograph-digital"},
-        {"label": "Treatment records", "value": total_treatments, "icon": "fa-vial-circle-check"},
-    ]
-
     return render_template(
         "main/index.html",
         stats=stats,
         invoice_chart=invoice_chart,
-        recent_customers=recent_customers,
-        recent_invoices=recent_invoices,
-        recent_readings=recent_readings,
-        system_snapshot=system_snapshot,
     )
+
+

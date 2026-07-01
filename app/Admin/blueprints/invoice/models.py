@@ -1,6 +1,9 @@
-from app.extensions import db
 from datetime import date
+
 from sqlalchemy import event
+
+from app.extensions import db
+
 
 class Invoice(db.Model):
     __tablename__ = "invoices"
@@ -9,26 +12,28 @@ class Invoice(db.Model):
     invoice_no = db.Column(db.String(32), unique=True, nullable=False, index=True)
 
     customer_id = db.Column(db.Integer, db.ForeignKey("customers.id", ondelete="RESTRICT"), nullable=False, index=True)
-    reading_id  = db.Column(db.Integer, db.ForeignKey("meter_readings.id", ondelete="RESTRICT"), nullable=False, unique=True, index=True)
+    reading_id = db.Column(db.Integer, db.ForeignKey("meter_readings.id", ondelete="RESTRICT"), nullable=False, unique=True, index=True)
 
-    period_start      = db.Column(db.Date, nullable=False)
-    period_end        = db.Column(db.Date, nullable=False)
-    last_read_m3      = db.Column(db.Numeric(12, 3), nullable=False)
-    current_read_m3   = db.Column(db.Numeric(12, 3), nullable=False)
-    used_water_m3     = db.Column(db.Numeric(12, 3), nullable=False)
-    rate_per_m3       = db.Column(db.Numeric(12, 3), nullable=False, default=0.75)
-    amount            = db.Column(db.Numeric(12, 2), nullable=False)
+    period_start = db.Column(db.Date, nullable=False)
+    period_end = db.Column(db.Date, nullable=False)
+    last_read_m3 = db.Column(db.Numeric(12, 3), nullable=False)
+    current_read_m3 = db.Column(db.Numeric(12, 3), nullable=False)
+    used_water_m3 = db.Column(db.Numeric(12, 3), nullable=False)
+    rate_per_m3 = db.Column(db.Numeric(12, 3), nullable=False, default=0.75)
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    amount_paid = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    balance_due = db.Column(db.Numeric(12, 2), nullable=False, default=0)
 
-    issue_date        = db.Column(db.Date, nullable=False, default=date.today)
-    due_date          = db.Column(db.Date, nullable=False)
-    status            = db.Column(db.String(16), nullable=False, default="issued")  # issued/unpaid/paid
-    currency          = db.Column(db.String(8), nullable=True)
-    
-    remarks           = db.Column(db.String(255), nullable=True)
+    issue_date = db.Column(db.Date, nullable=False, default=date.today)
+    due_date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(16), nullable=False, default="issued")  # issued/unpaid/partial/paid
+    currency = db.Column(db.String(8), nullable=True)
+
+    remarks = db.Column(db.String(255), nullable=True)
 
     # Relationships
     customer = db.relationship("Customer", backref=db.backref("invoices", lazy="dynamic"))
-    reading  = db.relationship("MeterReading", backref=db.backref("invoice", uselist=False))
+    reading = db.relationship("MeterReading", backref=db.backref("invoice", uselist=False))
 
 
 # ==========================

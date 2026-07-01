@@ -1,23 +1,23 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
+from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, send_file
 
 from datetime import date, timedelta
 import csv, io
-from openpyxl import Workbook 
+from openpyxl import Workbook
 from app.extensions import db
 from app.Auth.blueprints.auth.views import login_required, role_required
-
-
 
 
 from app.Admin.blueprints.customer.models import Customer
 from app.Admin.blueprints.meter.models import Meter
 from app.Admin.blueprints.meter_reading.models import MeterReading
+from app.Admin.blueprints.receipt.models import Receipt
+from app.utils.billing import apply_invoice_payment, get_default_water_rate
 from .models import Invoice
 
 
 invoice_bp = Blueprint("invoice", __name__, template_folder="templates")
 
-INVOICE_STATUSES = ("issued", "unpaid", "paid")
+INVOICE_STATUSES = ("issued", "unpaid", "partial", "paid")
 
 
 # ----------------- helpers -----------------
@@ -63,7 +63,7 @@ def _customer_latest_reading_snapshot() -> dict[int, dict]:
             continue
         m = meter_by_id.get(r.meter_id)
         used = float(r.used_water_m3 or max(0, (r.current_read_m3 or 0) - (r.last_read_m3 or 0)))
-        rate = float(r.rate_per_m3 or 0.75)
+        rate = float(r.rate_per_m3 or get_default_water_rate())
         latest[r.customer_id] = {
             "reading_id": r.id,
             "meter_serial": (m.meter_serial if m else "") or "",
@@ -89,13 +89,15 @@ def sync_invoice_from_reading(reading: MeterReading, *, status: str = "issued") 
     last_read = float(reading.last_read_m3 or 0)
     current_read = float(reading.current_read_m3 or 0)
     used_m3 = float(reading.used_water_m3 or max(0, current_read - last_read))
-    rate_m3 = float(reading.rate_per_m3 or 0.75)
+    rate_m3 = float(reading.rate_per_m3 or get_default_water_rate())
     amount = float(reading.amount_due or (used_m3 * rate_m3))
 
     inv = Invoice.query.filter_by(reading_id=reading.id).first()
     if inv is None:
         inv = Invoice(reading_id=reading.id)
         db.session.add(inv)
+
+    previous_paid = float(inv.amount_paid or 0)
 
     inv.customer_id = reading.customer_id
     inv.period_start = period_start
@@ -105,9 +107,16 @@ def sync_invoice_from_reading(reading: MeterReading, *, status: str = "issued") 
     inv.used_water_m3 = used_m3
     inv.rate_per_m3 = rate_m3
     inv.amount = amount
+    inv.amount_paid = previous_paid
+    inv.balance_due = max(round(amount - previous_paid, 2), 0)
     inv.issue_date = issue_date
     inv.due_date = due_date
-    if inv.status not in INVOICE_STATUSES:
+
+    if previous_paid >= amount and amount > 0:
+        inv.status = "paid"
+    elif previous_paid > 0:
+        inv.status = "partial"
+    elif inv.status not in INVOICE_STATUSES:
         inv.status = status
 
     return inv
@@ -116,7 +125,7 @@ def _apply_filters(q):
     """
     Filters for list + exports:
       - customer_id
-      - status (issued/unpaid/paid)
+      - status (issued/unpaid/partial/paid)
       - invoice_no (contains)
       - issued_from / issued_to   (issue_date range)
       - period_from / period_to   (period range intersects)
@@ -206,7 +215,7 @@ def list_invoices():
         allowed_per_page=[10, 25, 50, 100],
         customers=active_customers,
         customer_latest=customer_latest,
-        default_rate=0.75,
+        default_rate=get_default_water_rate(),
         today=_today(),
     )
 
@@ -218,6 +227,44 @@ def list_invoices():
 def create_invoice():
     flash("Invoices are created automatically from meter readings.", "info")
     return redirect(url_for("invoice.list_invoices", **request.args))
+
+
+@invoice_bp.route("/admin/invoices/<int:invoice_id>/payment", methods=["POST"])
+@login_required
+@role_required("Admin")
+def record_payment(invoice_id: int):
+    inv = Invoice.query.get_or_404(invoice_id)
+
+    try:
+        payment_amount = float(request.form.get("payment_amount", 0))
+    except (TypeError, ValueError):
+        payment_amount = 0.0
+
+    if payment_amount <= 0:
+        flash("Enter a valid payment amount.", "danger")
+        return redirect(url_for("receipt.list_receipts", customer_id=inv.customer_id))
+
+    applied, balance_before, balance_after, status = apply_invoice_payment(inv, payment_amount)
+    if applied <= 0:
+        flash("This invoice is already fully paid.", "info")
+        return redirect(url_for("receipt.list_receipts", customer_id=inv.customer_id))
+
+    receipt = Receipt(
+        invoice_id=inv.id,
+        customer_id=inv.customer_id,
+        amount_paid=applied,
+        balance_before=balance_before,
+        balance_after=balance_after,
+        payment_date=_today(),
+    )
+    db.session.add(receipt)
+    db.session.commit()
+
+    if payment_amount > applied:
+        flash(f"Only {applied:.2f} was applied because that is the remaining balance. Receipt {receipt.receipt_no} created.", "warning")
+    else:
+        flash(f"Receipt {receipt.receipt_no} created. Invoice is now {status.title()}.", "success")
+    return redirect(url_for("receipt.list_receipts", customer_id=inv.customer_id))
 
 # ----------------- delete -----------------
 @invoice_bp.route("/admin/invoices/<int:invoice_id>/delete", methods=["POST"])
@@ -240,7 +287,7 @@ def export_csv():
     headers = [
         "Invoice No", "Customer", "Meter Serial", "Reading ID",
         "Period Start", "Period End",
-        "Last Read (m3)", "Current Read (m3)", "Used (m3)", "Rate/m3", "Amount",
+        "Last Read (m3)", "Current Read (m3)", "Used (m3)", "Rate/m3", "Amount", "Amount Paid", "Balance Due",
         "Issue Date", "Due Date", "Status", "Currency", "Remarks"
     ]
 
@@ -268,6 +315,8 @@ def export_csv():
             f"{inv.used_water_m3:.2f}" if inv.used_water_m3 is not None else "",
             f"{inv.rate_per_m3:.4f}" if inv.rate_per_m3 is not None else "",
             f"{inv.amount:.2f}" if inv.amount is not None else "",
+            f"{inv.amount_paid:.2f}" if inv.amount_paid is not None else "",
+            f"{inv.balance_due:.2f}" if inv.balance_due is not None else "",
             inv.issue_date.isoformat() if inv.issue_date else "",
             inv.due_date.isoformat() if inv.due_date else "",
             inv.status or "",
@@ -296,7 +345,7 @@ def export_xlsx():
     headers = [
         "Invoice No", "Customer", "Meter Serial", "Reading ID",
         "Period Start", "Period End",
-        "Last Read (m3)", "Current Read (m3)", "Used (m3)", "Rate/m3", "Amount",
+        "Last Read (m3)", "Current Read (m3)", "Used (m3)", "Rate/m3", "Amount", "Amount Paid", "Balance Due",
         "Issue Date", "Due Date", "Status", "Currency", "Remarks"
     ]
     ws.append(headers)
@@ -321,6 +370,8 @@ def export_xlsx():
             float(inv.used_water_m3) if inv.used_water_m3 is not None else None,
             float(inv.rate_per_m3) if inv.rate_per_m3 is not None else None,
             float(inv.amount) if inv.amount is not None else None,
+            float(inv.amount_paid) if inv.amount_paid is not None else None,
+            float(inv.balance_due) if inv.balance_due is not None else None,
             inv.issue_date.isoformat() if inv.issue_date else None,
             inv.due_date.isoformat() if inv.due_date else None,
             inv.status or "",
@@ -361,5 +412,9 @@ def print_invoice(invoice_id):
         meter=meter,
         today  =_today(),
     )
+
+
+
+
 
 

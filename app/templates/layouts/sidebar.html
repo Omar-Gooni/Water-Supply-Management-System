@@ -1,74 +1,117 @@
-<aside class="sidebar" id="sidebar">
+﻿<aside class="sidebar" id="sidebar">
   <div class="brand">WSMS</div>
   <nav class="nav">
-    <a href="{{ url_for('main.admin_dashboard') }}"><i class="fas fa-home"></i> Dashboard</a>
+    {% set role = (session.get('role') or '')|lower %}
+    {% set current_endpoint = request.endpoint or '' %}
+    {% set report_endpoints = [
+      'reports.index',
+      'reports.customers_report',
+      'reports.service_areas_report',
+      'reports.meters_report',
+      'reports.readings_report',
+      'reports.invoices_report',
+      'reports.receipts_report',
+      'reports.staff_report',
+      'reports.collections_report'
+    ] %}
+    {% set report_menu_open = current_endpoint in report_endpoints %}
 
-    <a href="" class="has-submenu js-submenu-toggle">
-   <i class="fas fa-water"></i> 
-      <span>Source</span>
-      <i class="fas fa-chevron-down nav-arrow"></i>
-    </a>
-    <div class="submenu">
-      <a href="{{ url_for('source.list_sources') }}" class="submenu-item">Water_source</a>
-    </div>
+    {% if role == 'staff' %}
+      <a href="{{ url_for('staff_meter_reading.list_readings') }}"><i class="fas fa-tachograph-digital"></i> Meter Readings</a>
+      <a href="{{ url_for('staff_main.staff_profile') }}"><i class="fas fa-id-card"></i> My Profile</a>
+      <a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    {% else %}
+      <a href="{{ url_for('main.admin_dashboard') }}"><i class="fas fa-home"></i> Dashboard</a>
 
-    <a href="" class="has-submenu js-submenu-toggle">
-      <i class="fas fa-filter"></i>
-      <span>Filtration</span>
-      <i class="fas fa-chevron-down nav-arrow"></i>
-    </a>
+      <a href="#" class="has-submenu js-submenu-toggle">
+        <i class="fas fa-water"></i>
+        <span>Source</span>
+        <i class="fas fa-chevron-down nav-arrow"></i>
+      </a>
+      <div class="submenu">
+        <a href="{{ url_for('source.list_sources') }}" class="submenu-item">Water_source</a>
+      </div>
 
-    <div class="submenu">
-      <a href="{{ url_for('treatment_record.list_records') }}" class="submenu-item">Filtration_Record</a>
-      <a href="{{ url_for('chemical.list_chemicals') }}" class="submenu-item">Chemical</a>
-    </div>
+      <a href="#" class="has-submenu js-submenu-toggle">
+        <i class="fas fa-filter"></i>
+        <span>Filtration</span>
+        <i class="fas fa-chevron-down nav-arrow"></i>
+      </a>
+      <div class="submenu">
+        <a href="{{ url_for('treatment_record.list_records') }}" class="submenu-item">Filtration_Record</a>
+        <a href="{{ url_for('chemical.list_chemicals') }}" class="submenu-item">Chemical</a>
+      </div>
 
-    <a href="" class="has-submenu js-submenu-toggle">
-      <i class="fas fa-boxes-stacked"></i>
-      <span>Storage</span>
-      <i class="fas fa-chevron-down nav-arrow"></i>
-    </a>
-    <div class="submenu">
-      <a href="{{ url_for('storage_tank.list_tanks') }}" class="submenu-item">Storage_tank</a>
-    </div>
+      <a href="#" class="has-submenu js-submenu-toggle">
+        <i class="fas fa-boxes-stacked"></i>
+        <span>Storage</span>
+        <i class="fas fa-chevron-down nav-arrow"></i>
+      </a>
+      <div class="submenu">
+        <a href="{{ url_for('storage_tank.list_tanks') }}" class="submenu-item">Storage_tank</a>
+      </div>
 
-    <a href="" class="has-submenu js-submenu-toggle">
-      <i class="fas fa-faucet"></i>
-      <span>Distribution</span>
-      <i class="fas fa-chevron-down nav-arrow"></i>
-    </a>
+      <a href="#" class="has-submenu js-submenu-toggle">
+        <i class="fas fa-faucet"></i>
+        <span>Distribution</span>
+        <i class="fas fa-chevron-down nav-arrow"></i>
+      </a>
+      <div class="submenu">
+        <a href="{{ url_for('service_area.list_areas') }}" class="submenu-item">Service_area</a>
+        <a href="{{ url_for('pipeline.list_pipelines') }}" class="submenu-item">Pipeline</a>
+      </div>
 
-    <div class="submenu">
-      <a href="{{ url_for('service_area.list_areas') }}" class="submenu-item">Service_area</a>
-      <a href="{{ url_for('pipeline.list_pipelines') }}" class="submenu-item">Pipeline</a>
-    </div>
-    
-    <a href="" class="has-submenu js-submenu-toggle">
-      <i class="fas fa-user-gear"></i> 
-      <span>CRM</span>
-      <i class="fas fa-chevron-down nav-arrow"></i>
-    </a>
+      <a href="#" class="has-submenu js-submenu-toggle">
+        <i class="fas fa-user-gear"></i>
+        <span>CRM</span>
+        <i class="fas fa-chevron-down nav-arrow"></i>
+      </a>
+      <div class="submenu">
+        <a href="{{ url_for('customer.list_customers') }}" class="submenu-item">Customer</a>
+        <a href="{{ url_for('meter.list_meters') }}" class="submenu-item">Meter</a>
+        <a href="{{ url_for('meter_reading.list_readings') }}" class="submenu-item">Meter_reading</a>
+      </div>
 
-    <div class="submenu">
-      <a href="{{ url_for('customer.list_customers') }}" class="submenu-item">Customer</a>
-      <a href="{{ url_for('meter.list_meters') }}" class="submenu-item">Meter</a>
-      <a href="{{ url_for('meter_reading.list_readings') }}" class="submenu-item">Meter_reading</a>
-    </div>
+      <a href="#" class="has-submenu js-submenu-toggle">
+        <i class="fas fa-file-invoice-dollar"></i>
+        <span>Billing</span>
+        <i class="fas fa-chevron-down nav-arrow"></i>
+      </a>
+      <div class="submenu">
+        <a href="{{ url_for('invoice.list_invoices') }}" class="submenu-item">Invoice</a>
+        <a href="{{ url_for('receipt.list_receipts') }}" class="submenu-item">Receipt</a>
+      </div>
 
-    <a href="" class="has-submenu js-submenu-toggle">
-      <i class="fas fa-file-invoice-dollar"></i>
-      <span>Billing</span>
-      <i class="fas fa-chevron-down nav-arrow"></i>
-    </a>
+      <a href="#" class="has-submenu js-submenu-toggle {% if report_menu_open %}active{% endif %}">
+        <i class="fas fa-chart-column"></i>
+        <span>Reports</span>
+        <i class="fas fa-chevron-down nav-arrow"></i>
+      </a>
+      <div class="submenu {% if report_menu_open %}open{% endif %}">
+        <a href="{{ url_for('reports.index') }}" class="submenu-item {% if current_endpoint == 'reports.index' %}active{% endif %}">Overview</a>
+        <a href="{{ url_for('reports.customers_report') }}" class="submenu-item {% if current_endpoint == 'reports.customers_report' %}active{% endif %}">Customer Report</a>
+        <a href="{{ url_for('reports.service_areas_report') }}" class="submenu-item {% if current_endpoint == 'reports.service_areas_report' %}active{% endif %}">Area Report</a>
+        <a href="{{ url_for('reports.meters_report') }}" class="submenu-item {% if current_endpoint == 'reports.meters_report' %}active{% endif %}">Meter Report</a>
+        <a href="{{ url_for('reports.readings_report') }}" class="submenu-item {% if current_endpoint == 'reports.readings_report' %}active{% endif %}">Reading Report</a>
+        <a href="{{ url_for('reports.invoices_report') }}" class="submenu-item {% if current_endpoint == 'reports.invoices_report' %}active{% endif %}">Invoice Report</a>
+        <a href="{{ url_for('reports.receipts_report') }}" class="submenu-item {% if current_endpoint == 'reports.receipts_report' %}active{% endif %}">Receipt Report</a>
+        <a href="{{ url_for('reports.staff_report') }}" class="submenu-item {% if current_endpoint == 'reports.staff_report' %}active{% endif %}">Staff Report</a>
+        <a href="{{ url_for('reports.collections_report') }}" class="submenu-item {% if current_endpoint == 'reports.collections_report' %}active{% endif %}">Collection Report</a>
+      </div>
 
-    <div class="submenu">
-      <a href="{{ url_for('invoice.list_invoices') }}" class="submenu-item">Invoice</a>
+      <a href="#" class="has-submenu js-submenu-toggle">
+        <i class="fas fa-users-gear"></i>
+        <span>Administration</span>
+        <i class="fas fa-chevron-down nav-arrow"></i>
+      </a>
+      <div class="submenu">
+        <a href="{{ url_for('staff_account.list_staff') }}" class="submenu-item">Staff</a>
+      </div>
 
-    </div>
-
-    <a href="{{ url_for('auth.logout') }}">
-      <i class="fas fa-sign-out-alt"></i>
-      Logout
-    </a>
+      <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i>
+        Logout
+      </a>
+    {% endif %}
   </nav>
 </aside>

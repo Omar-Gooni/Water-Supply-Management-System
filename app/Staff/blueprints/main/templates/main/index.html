@@ -1,0 +1,35 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Staff Dashboard{% endblock %}
+
+{% block content %}
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><strong>Customers</strong></div>
+        <div class="card-body">
+          <div class="display-6">View</div>
+          <a href="{{ url_for('staff_customer.list_customers') }}" class="btn btn-primary btn-sm mt-2">Open Customers</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><strong>Readings</strong></div>
+        <div class="card-body">
+          <div class="display-6">Add</div>
+          <a href="{{ url_for('staff_meter_reading.list_readings') }}" class="btn btn-primary btn-sm mt-2">Open Meter Readings</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><strong>Invoices</strong></div>
+        <div class="card-body">
+          <div class="display-6">Create</div>
+          <a href="{{ url_for('staff_invoice.list_invoices') }}" class="btn btn-primary btn-sm mt-2">Open Invoices</a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

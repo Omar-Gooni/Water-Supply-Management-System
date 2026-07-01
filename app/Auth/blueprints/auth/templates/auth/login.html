@@ -239,29 +239,24 @@
             </div>
             
             <div class="card-footer">
-                &copy; 2025 Water Supply Management System | Developed by Eng Omar Gooni
+                &copy; 2025 Water Supply Management System 
             </div>
         </div>
     </div>
 
-    <script>
+        <script>
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('loginForm');
-            
+
             form.addEventListener('submit', function(e) {
                 const username = document.getElementById('username');
                 const password = document.getElementById('password');
-                const role = document.getElementById('role');
-                
-                // Check if any field is empty
-                if (!username.value.trim() || !password.value.trim() || !role.value) {
-                    e.preventDefault(); // Stop form submission
-                    
-                    // Show flash message
+
+                if (!username.value.trim() || !password.value.trim()) {
+                    e.preventDefault();
+
                     const flashContainer = document.querySelector('.flash-messages');
                     flashContainer.innerHTML = '<div class="alert alert-danger">Please fill in all fields</div>';
-                    
-                    // Optional: Scroll to the message
                     flashContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
             });
