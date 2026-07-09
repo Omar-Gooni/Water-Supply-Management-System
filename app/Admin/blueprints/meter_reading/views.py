@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, make_response
 from app.extensions import db
-from datetime import datetime
+from datetime import datetime, date, date
 import io, csv
 from openpyxl import Workbook
 
@@ -92,11 +92,11 @@ def list_readings():
 def create_reading():
     customer_id = request.form.get("customer_id", type=int)
     meter_id = request.form.get("meter_id", type=int)
-    reading_date = _to_date(request.form.get("reading_date"))
+    reading_date = _to_date(request.form.get("reading_date")) or date.today()
     current_read = request.form.get("current_read_m3", type=float)
 
-    if not customer_id or not reading_date or current_read is None:
-        flash("Customer, Reading Date and Current reading are required.", "danger")
+    if not customer_id or current_read is None:
+        flash("Customer and Current reading are required.", "danger")
         return redirect(url_for("meter_reading.list_readings", **request.args))
 
     if not meter_id:
@@ -128,7 +128,7 @@ def create_reading():
 
     db.session.add(rec)
     db.session.flush()
-    invoice = sync_invoice_from_reading(rec, status="issued")
+    invoice = sync_invoice_from_reading(rec)
     db.session.flush()
     db.session.commit()
     flash(f"Meter reading created and invoice {invoice.invoice_no} generated.", "success")
@@ -144,11 +144,11 @@ def edit_reading(rec_id):
 
     customer_id = request.form.get("customer_id", type=int)
     meter_id = request.form.get("meter_id", type=int)
-    reading_date = _to_date(request.form.get("reading_date"))
+    reading_date = _to_date(request.form.get("reading_date")) or date.today()
     current_read = request.form.get("current_read_m3", type=float)
 
-    if not customer_id or not reading_date or current_read is None:
-        flash("Customer, Reading Date and Current reading are required.", "danger")
+    if not customer_id or current_read is None:
+        flash("Customer and Current reading are required.", "danger")
         return redirect(url_for("meter_reading.list_readings", **request.args))
 
     if not meter_id:
@@ -177,7 +177,7 @@ def edit_reading(rec_id):
     rec.rate_per_m3 = rate_per_m3
     rec.amount_due = amount_due
 
-    sync_invoice_from_reading(rec, status="issued")
+    sync_invoice_from_reading(rec)
     db.session.commit()
     flash("Meter reading updated and invoice synchronized.", "success")
     return redirect(url_for("meter_reading.list_readings", **request.args))

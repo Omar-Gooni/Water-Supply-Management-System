@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from datetime import date, timedelta
 import csv, io
 from openpyxl import Workbook
+from sqlalchemy import func
 from app.extensions import db
 from app.Auth.blueprints.auth.views import login_required, role_required
 
@@ -17,7 +18,7 @@ from .models import Invoice
 
 invoice_bp = Blueprint("invoice", __name__, template_folder="templates")
 
-INVOICE_STATUSES = ("issued", "unpaid", "partial", "paid")
+INVOICE_STATUSES = ("unpaid", "partial", "paid")
 
 
 # ----------------- helpers -----------------
@@ -76,7 +77,7 @@ def _customer_latest_reading_snapshot() -> dict[int, dict]:
         }
     return latest
 
-def sync_invoice_from_reading(reading: MeterReading, *, status: str = "issued") -> Invoice:
+def sync_invoice_from_reading(reading: MeterReading, *, status: str = "unpaid") -> Invoice:
     """Create or update the invoice that belongs to a meter reading."""
     issue_date = reading.reading_date or _today()
     try:
@@ -117,7 +118,7 @@ def sync_invoice_from_reading(reading: MeterReading, *, status: str = "issued") 
     elif previous_paid > 0:
         inv.status = "partial"
     elif inv.status not in INVOICE_STATUSES:
-        inv.status = status
+        inv.status = status if status in INVOICE_STATUSES else "unpaid"
 
     return inv
 
@@ -125,7 +126,7 @@ def _apply_filters(q):
     """
     Filters for list + exports:
       - customer_id
-      - status (issued/unpaid/partial/paid)
+      - status (unpaid/partial/paid)
       - invoice_no (contains)
       - issued_from / issued_to   (issue_date range)
       - period_from / period_to   (period range intersects)
@@ -201,6 +202,35 @@ def list_invoices():
     )
     invoices = pagination.items
 
+    summary_rows = (
+        base_q.with_entities(
+            Invoice.status,
+            func.count(Invoice.id),
+            func.coalesce(func.sum(Invoice.amount), 0),
+            func.coalesce(func.sum(Invoice.balance_due), 0),
+        )
+        .group_by(Invoice.status)
+        .all()
+    )
+    summary_map = {
+        (status or "unpaid").lower(): {
+            "count": int(count or 0),
+            "amount": float(total_amount or 0),
+            "balance": float(total_balance or 0),
+        }
+        for status, count, total_amount, total_balance in summary_rows
+    }
+    invoice_summary = {
+        "total_count": pagination.total,
+        "total_amount": float(sum(float(inv.amount or 0) for inv in invoices)),
+        "total_balance": float(sum(float(inv.balance_due or 0) for inv in invoices)),
+        "unpaid_count": summary_map.get("unpaid", {}).get("count", 0),
+        "partial_count": summary_map.get("partial", {}).get("count", 0),
+        "paid_count": summary_map.get("paid", {}).get("count", 0),
+        "unpaid_amount": summary_map.get("unpaid", {}).get("amount", 0.0),
+        "partial_amount": summary_map.get("partial", {}).get("amount", 0.0),
+        "paid_amount": summary_map.get("paid", {}).get("amount", 0.0),
+    }
 
     # dropdown + auto-fill map
     active_customers = Customer.query.filter(Customer.status == "active") \
@@ -217,6 +247,7 @@ def list_invoices():
         customer_latest=customer_latest,
         default_rate=get_default_water_rate(),
         today=_today(),
+        invoice_summary=invoice_summary,
     )
 
 

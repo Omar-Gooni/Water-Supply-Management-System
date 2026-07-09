@@ -1,6 +1,6 @@
 from datetime import date
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 from sqlalchemy import func
 
 from app.Auth.blueprints.auth.views import login_required, role_required
@@ -21,6 +21,7 @@ PAYMENT_METHODS = {
     "account": "Account",
 }
 SCOPE_ALL_CUSTOMERS = "all_customers"
+SCOPE_SERVICE_AREA = "service_area"
 SCOPE_ONE_CUSTOMER = "one_customer"
 
 
@@ -29,7 +30,7 @@ def _today() -> date:
 
 
 def _normalize_scope(scope: str | None) -> str:
-    if scope in (SCOPE_ALL_CUSTOMERS, SCOPE_ONE_CUSTOMER):
+    if scope in (SCOPE_ALL_CUSTOMERS, SCOPE_SERVICE_AREA, SCOPE_ONE_CUSTOMER):
         return scope
     return SCOPE_ALL_CUSTOMERS
 
@@ -201,7 +202,7 @@ def _apply_payment_to_customer(customer, payment_amount, payment_method, remarks
 
 
 def _collect_service_area_receipts(service_area_id, payment_method, remarks):
-    customers = _customer_query(None).all()
+    customers = _customer_query(service_area_id).all()
     next_seed = _next_receipt_seed()
     created_receipts = []
     applied_total = 0.0
@@ -236,11 +237,11 @@ def _aggregate_rows(rows):
 
 @receipt_bp.route("/admin/receipts")
 @login_required
-@role_required("Admin")
+@role_required("Admin", "Counter")
 def list_receipts():
     service_area_id, customer_id, scope = _selected_ids()
     service_areas = ServiceArea.query.order_by(ServiceArea.area_name.asc()).all()
-    customers = _customer_query(None).all()
+    customers = _customer_query(service_area_id).all()
     customer_summary_rows = _customer_summary_rows(None)
     selected_service_area = db.session.get(ServiceArea, service_area_id) if service_area_id else None
     selected_customer = _selected_customer(service_area_id, customer_id)
@@ -251,15 +252,24 @@ def list_receipts():
         if not selected_service_area or (row["customer"] and row["customer"].service_area_id == selected_service_area.id)
     ]
 
-    if scope == SCOPE_ONE_CUSTOMER and selected_customer:
-        selected_summary = next((row for row in customer_summary_rows if row["customer_id"] == selected_customer.id), None)
+    if scope == SCOPE_ONE_CUSTOMER:
+        selected_summary = next((row for row in customer_summary_rows if row["customer_id"] == selected_customer.id), None) if selected_customer else None
         summary_data = selected_summary or {
             "invoice_count": 0,
             "total_amount": 0.0,
             "total_paid": 0.0,
             "total_balance": 0.0,
         }
-        summary_label = selected_customer.customer_name
+        summary_label = selected_customer.customer_name if selected_customer else "Select customer"
+    elif scope == SCOPE_SERVICE_AREA:
+        selected_summary = None
+        summary_data = _aggregate_rows(area_rows) if selected_service_area and area_rows else {
+            "invoice_count": 0,
+            "total_amount": 0.0,
+            "total_paid": 0.0,
+            "total_balance": 0.0,
+        }
+        summary_label = selected_service_area.area_name if selected_service_area else "Select service area"
     else:
         selected_summary = None
         summary_data = _aggregate_rows(area_rows) if area_rows else {
@@ -268,7 +278,7 @@ def list_receipts():
             "total_paid": 0.0,
             "total_balance": 0.0,
         }
-        summary_label = selected_service_area.area_name if selected_service_area else "All customers"
+        summary_label = "All customers"
 
     summary_currency = _currency_for_service_area(service_area_id)
     if selected_invoices:
@@ -279,6 +289,8 @@ def list_receipts():
 
     recent_receipts = _recent_receipts()
     receipt_modal_open = bool(request.args.get("open_receipt") or service_area_id or customer_id)
+
+    can_manage_receipts = (session.get("role") or "").lower() in {"admin", "counter"}
 
     return render_template(
         "receipt/list.html",
@@ -297,12 +309,13 @@ def list_receipts():
         receipt_modal_open=receipt_modal_open,
         service_area_id=service_area_id,
         customer_id=customer_id,
+        can_manage_receipts=can_manage_receipts,
     )
 
 
 @receipt_bp.route("/admin/receipts/create", methods=["POST"])
 @login_required
-@role_required("Admin")
+@role_required("Admin", "Counter")
 def create_receipts():
     service_area_id = request.form.get("service_area_id", type=int)
     scope = _normalize_scope(request.form.get("scope"))
@@ -311,9 +324,26 @@ def create_receipts():
     remarks = (request.form.get("remarks") or "").strip()
 
     if scope == SCOPE_ALL_CUSTOMERS:
-        if not service_area_id:
-            flash("Choose a service area before creating receipts for all customers.", "danger")
+        created_receipts, applied_total, customer_count = _collect_service_area_receipts(
+            service_area_id=None,
+            payment_method=payment_method,
+            remarks=remarks,
+        )
+        if not created_receipts:
+            flash("No outstanding balances were found for all customers.", "info")
             return redirect(url_for("receipt.list_receipts", scope=SCOPE_ALL_CUSTOMERS, open_receipt=1))
+
+        db.session.commit()
+        flash(
+            f"Created {len(created_receipts)} receipt(s) for {customer_count} customer(s) across all customers. Total collected {applied_total:.2f}.",
+            "success",
+        )
+        return redirect(url_for("receipt.list_receipts", scope=SCOPE_ALL_CUSTOMERS, open_receipt=1))
+
+    if scope == SCOPE_SERVICE_AREA:
+        if not service_area_id:
+            flash("Choose a service area before creating receipts for that area.", "danger")
+            return redirect(url_for("receipt.list_receipts", scope=SCOPE_SERVICE_AREA, open_receipt=1))
 
         area = db.session.get(ServiceArea, service_area_id)
         if area is None:
@@ -327,14 +357,14 @@ def create_receipts():
         )
         if not created_receipts:
             flash("No outstanding balances were found for that service area.", "info")
-            return redirect(url_for("receipt.list_receipts", service_area_id=service_area_id, scope=SCOPE_ALL_CUSTOMERS, open_receipt=1))
+            return redirect(url_for("receipt.list_receipts", service_area_id=service_area_id, scope=SCOPE_SERVICE_AREA, open_receipt=1))
 
         db.session.commit()
         flash(
             f"Created {len(created_receipts)} receipt(s) for {customer_count} customer(s) in {area.area_name}. Total collected {applied_total:.2f}.",
             "success",
         )
-        return redirect(url_for("receipt.list_receipts", service_area_id=service_area_id, scope=SCOPE_ALL_CUSTOMERS, open_receipt=1))
+        return redirect(url_for("receipt.list_receipts", service_area_id=service_area_id, scope=SCOPE_SERVICE_AREA, open_receipt=1))
 
     customer = _selected_customer(service_area_id, customer_id)
     if customer is None:
@@ -382,7 +412,7 @@ def create_receipts():
 
 @receipt_bp.route("/admin/receipts/invoice/<int:invoice_id>", methods=["POST"])
 @login_required
-@role_required("Admin")
+@role_required("Admin", "Counter")
 def record_receipt(invoice_id: int):
     invoice = Invoice.query.get_or_404(invoice_id)
 
@@ -426,9 +456,107 @@ def record_receipt(invoice_id: int):
     return redirect(url_for("receipt.list_receipts", customer_id=invoice.customer_id, scope=SCOPE_ONE_CUSTOMER, open_receipt=1))
 
 
+def _invoice_total_receipts(invoice, exclude_receipt_id: int | None = None) -> float:
+    query = invoice.receipts
+    if exclude_receipt_id is not None:
+        query = query.filter(Receipt.id != exclude_receipt_id)
+    return round(sum(float(receipt.amount_paid or 0) for receipt in query.all()), 2)
+
+
+def _recalculate_invoice_receipts(invoice):
+    receipts = invoice.receipts.order_by(Receipt.payment_date.asc(), Receipt.id.asc()).all()
+    running_balance = round(float(invoice.amount or 0), 2)
+    total_paid = 0.0
+
+    for receipt in receipts:
+        amount_paid = round(float(receipt.amount_paid or 0), 2)
+        balance_before = running_balance
+        applied_amount = min(amount_paid, running_balance)
+        running_balance = round(max(running_balance - applied_amount, 0), 2)
+        receipt.amount_paid = round(applied_amount, 2)
+        receipt.balance_before = round(balance_before, 2)
+        receipt.balance_after = round(running_balance, 2)
+        total_paid = round(total_paid + applied_amount, 2)
+
+    invoice.amount_paid = round(total_paid, 2)
+    invoice.balance_due = round(running_balance, 2)
+    if total_paid <= 0:
+        invoice.status = 'unpaid'
+    elif running_balance <= 0:
+        invoice.status = 'paid'
+    else:
+        invoice.status = 'partial'
+
+    return total_paid, running_balance
+
+
+@receipt_bp.route("/admin/receipts/<int:receipt_id>/edit", methods=["POST"])
+@login_required
+@role_required("Admin", "Counter")
+def edit_receipt(receipt_id: int):
+    receipt = Receipt.query.get_or_404(receipt_id)
+    invoice = receipt.invoice
+
+    try:
+        amount_paid = float(request.form.get("amount_paid", 0) or 0)
+    except (TypeError, ValueError):
+        amount_paid = 0.0
+
+    if amount_paid <= 0:
+        flash("Enter a valid receipt amount.", "danger")
+        return redirect(url_for("receipt.list_receipts", customer_id=receipt.customer_id, scope=SCOPE_ONE_CUSTOMER, open_receipt=1))
+
+    other_receipts_total = _invoice_total_receipts(invoice, exclude_receipt_id=receipt.id)
+    invoice_capacity = round(float(invoice.amount or 0) - other_receipts_total, 2)
+    if amount_paid > invoice_capacity:
+        flash(
+            f"Receipt amount cannot exceed the remaining invoice balance. Maximum allowed is {invoice_capacity:.2f}.",
+            "danger",
+        )
+        return redirect(url_for("receipt.list_receipts", customer_id=receipt.customer_id, scope=SCOPE_ONE_CUSTOMER, open_receipt=1))
+
+    payment_date_raw = (request.form.get("payment_date") or "").strip()
+    try:
+        payment_date = date.fromisoformat(payment_date_raw) if payment_date_raw else receipt.payment_date
+    except ValueError:
+        flash("Enter a valid payment date.", "danger")
+        return redirect(url_for("receipt.list_receipts", customer_id=receipt.customer_id, scope=SCOPE_ONE_CUSTOMER, open_receipt=1))
+
+    receipt.amount_paid = round(amount_paid, 2)
+    receipt.payment_method = _normalize_payment_method(request.form.get("payment_method"))
+    receipt.payment_date = payment_date
+    receipt.remarks = (request.form.get("remarks") or "").strip() or None
+
+    _recalculate_invoice_receipts(invoice)
+    db.session.commit()
+
+    flash(f"Receipt {receipt.receipt_no} updated.", "success")
+    return redirect(url_for("receipt.list_receipts", customer_id=receipt.customer_id, scope=SCOPE_ONE_CUSTOMER, open_receipt=1))
+
+
+@receipt_bp.route("/admin/receipts/<int:receipt_id>/delete", methods=["POST"])
+@login_required
+@role_required("Admin", "Counter")
+def delete_receipt(receipt_id: int):
+    receipt = Receipt.query.get_or_404(receipt_id)
+    invoice = receipt.invoice
+    customer_id = receipt.customer_id
+
+    receipt_no = receipt.receipt_no
+    db.session.delete(receipt)
+    db.session.flush()
+    _recalculate_invoice_receipts(invoice)
+    db.session.commit()
+
+    flash(f"Receipt {receipt_no} deleted.", "info")
+    return redirect(url_for("receipt.list_receipts", customer_id=customer_id, scope=SCOPE_ONE_CUSTOMER, open_receipt=1))
+
+
+
+
 @receipt_bp.route("/admin/receipts/<int:receipt_id>/print")
 @login_required
-@role_required("Admin")
+@role_required("Admin", "Counter")
 def print_receipt(receipt_id: int):
     receipt = Receipt.query.get_or_404(receipt_id)
     return render_template(

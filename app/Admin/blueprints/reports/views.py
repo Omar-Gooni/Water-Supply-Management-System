@@ -34,7 +34,7 @@ REPORT_LINKS = [
     {"label": "Reading", "endpoint": "reports.readings_report", "icon": "fa-solid fa-tachograph-digital", "description": "Filter meter readings by reading date."},
     {"label": "Invoice", "endpoint": "reports.invoices_report", "icon": "fa-solid fa-file-invoice-dollar", "description": "Filter invoices by issue date."},
     {"label": "Receipt", "endpoint": "reports.receipts_report", "icon": "fa-solid fa-receipt", "description": "Filter receipts by payment date."},
-    {"label": "Staff", "endpoint": "reports.staff_report", "icon": "fa-solid fa-user-gear", "description": "Filter staff users by created date."},
+    {"label": "Revenue", "endpoint": "reports.revenue_report", "icon": "fa-solid fa-sack-dollar", "description": "Review company revenue collected from receipts."},
     {"label": "Collection", "endpoint": "reports.collections_report", "icon": "fa-solid fa-hand-holding-dollar", "description": "Filter outstanding invoices by due date."},
 ]
 
@@ -45,7 +45,7 @@ REPORT_ROUTE_MAP = {
     "readings": "reports.readings_report",
     "invoices": "reports.invoices_report",
     "receipts": "reports.receipts_report",
-    "staff": "reports.staff_report",
+    "revenue": "reports.revenue_report",
     "collections": "reports.collections_report",
 }
 
@@ -212,6 +212,7 @@ def _render_report(report_key, spec):
         "result_range": spec["result_range"],
         "filter_fields": spec["filter_fields"],
         "filter_summary": spec["filter_summary"],
+        "report_metrics": spec.get("report_metrics", []),
         "table_title": spec["table_title"],
         "table_note": spec["table_note"],
         "table_columns": spec["table_columns"],
@@ -235,6 +236,7 @@ def _render_print(report_key, spec):
         report_title=spec["report_title"],
         report_description=spec["report_description"],
         filter_summary=spec["filter_summary"],
+        report_metrics=spec.get("report_metrics", []),
         table_title=spec["table_title"],
         table_columns=spec["table_columns"],
         table_rows=spec["table_rows"],
@@ -375,7 +377,7 @@ def build_customers_report():
         "filter_label": "Created Date",
         "from_date": start.isoformat() if start else "",
         "to_date": end.isoformat() if end else "",
-        "result_range": _range_text(start, end),
+        "result_range": "",
         "filter_fields": filter_fields,
         "filter_summary": _active_filter_summary("Created Date", start, end, filter_fields),
         "table_title": "Registered Customers",
@@ -461,7 +463,7 @@ def build_service_areas_report():
         "filter_label": "Created Date",
         "from_date": start.isoformat() if start else "",
         "to_date": end.isoformat() if end else "",
-        "result_range": _range_text(start, end),
+        "result_range": "",
         "filter_fields": filter_fields,
         "filter_summary": _active_filter_summary("Created Date", start, end, filter_fields),
         "table_title": "Service Areas",
@@ -549,7 +551,7 @@ def build_meters_report():
         "filter_label": "Install Date",
         "from_date": start.isoformat() if start else "",
         "to_date": end.isoformat() if end else "",
-        "result_range": _range_text(start, end),
+        "result_range": "",
         "filter_fields": filter_fields,
         "filter_summary": _active_filter_summary("Install Date", start, end, filter_fields),
         "table_title": "Installed Meters",
@@ -632,7 +634,7 @@ def build_readings_report():
         "filter_label": "Reading Date",
         "from_date": start.isoformat() if start else "",
         "to_date": end.isoformat() if end else "",
-        "result_range": _range_text(start, end),
+        "result_range": "",
         "filter_fields": filter_fields,
         "filter_summary": _active_filter_summary("Reading Date", start, end, filter_fields),
         "table_title": "Meter Readings",
@@ -727,7 +729,7 @@ def build_invoices_report():
         "filter_label": "Issue Date",
         "from_date": start.isoformat() if start else "",
         "to_date": end.isoformat() if end else "",
-        "result_range": _range_text(start, end),
+        "result_range": "",
         "filter_fields": filter_fields,
         "filter_summary": _active_filter_summary("Issue Date", start, end, filter_fields),
         "table_title": "Invoices",
@@ -826,9 +828,9 @@ def build_receipts_report():
         "filter_label": "Payment Date",
         "from_date": start.isoformat() if start else "",
         "to_date": end.isoformat() if end else "",
-        "result_range": _range_text(start, end),
+        "result_range": "",
         "filter_fields": filter_fields,
-        "filter_summary": _active_filter_summary("Payment Date", start, end, filter_fields),
+        "filter_summary": [],
         "table_title": "Receipts",
         "table_note": "Recorded payments against invoices and their remaining balances.",
         "table_columns": [
@@ -849,81 +851,85 @@ def build_receipts_report():
     }
 
 
-def build_staff_report():
+def build_revenue_report():
     start, end = _date_range()
-    service_area_id = _query_int("service_area_id")
-    q_text = _query_text("q")
 
-    query = User.query.options(joinedload(User.service_area)).filter(User.role == "Staff")
-    if service_area_id:
-        query = query.filter(User.service_area_id == service_area_id)
-    if q_text:
-        like = f"%{q_text}%"
-        query = query.filter(
-            or_(
-                User.full_name.ilike(like),
-                User.username.ilike(like),
-                User.job_title.ilike(like),
-                User.phone.ilike(like),
-            )
+    base_query = Receipt.query.join(Receipt.customer).outerjoin(Customer.service_area)
+    base_query = _apply_date_filter(base_query, Receipt.payment_date, start, end)
+
+    totals = base_query.with_entities(
+        func.count(Receipt.id).label("receipt_count"),
+        func.coalesce(func.sum(Receipt.amount_paid), 0).label("total_revenue"),
+    ).one()
+
+    revenue_rows = (
+        base_query.with_entities(
+            ServiceArea.area_name.label("service_area_name"),
+            ServiceArea.area_code.label("service_area_code"),
+            Receipt.payment_date.label("payment_date"),
+            Receipt.payment_method.label("payment_method"),
+            func.count(Receipt.id).label("receipt_count"),
+            func.coalesce(func.sum(Receipt.amount_paid), 0).label("total_revenue"),
         )
-    query = _apply_date_filter(query, User.created_date, start, end)
+        .group_by(ServiceArea.id, ServiceArea.area_name, ServiceArea.area_code, Receipt.payment_date, Receipt.payment_method)
+        .order_by(func.coalesce(ServiceArea.area_name, "Unassigned").asc(), Receipt.payment_date.desc(), Receipt.payment_method.asc())
+        .all()
+    )
 
-    staff_members = query.order_by(User.created_date.desc(), User.id.desc()).all()
-    rows = [
-        {
-            "full_name": staff.full_name or "-",
-            "username": staff.username or "-",
-            "job_title": staff.job_title or "-",
-            "service_area": _service_area_display(staff.service_area),
-            "phone": staff.phone or "-",
-            "created_date": _fmt_date(staff.created_date),
-        }
-        for staff in staff_members
+    rows = []
+    service_area_labels = set()
+    for row in revenue_rows:
+        service_area_label = row.service_area_name or "Unassigned"
+        if row.service_area_code:
+            service_area_label = f"{service_area_label} ({row.service_area_code})"
+        service_area_labels.add(service_area_label)
+        rows.append(
+            {
+                "service_area": service_area_label,
+                "payment_date": _fmt_date(row.payment_date),
+                "payment_method": PAYMENT_METHOD_LABELS.get(row.payment_method, _pretty_label(row.payment_method)),
+                "receipt_count": _fmt_count(row.receipt_count),
+                "total_revenue": _fmt_money(row.total_revenue),
+                "avg_receipt": _fmt_money((row.total_revenue or 0) / (row.receipt_count or 1)),
+            }
+        )
+
+    receipt_count = totals.receipt_count or 0
+    total_revenue = totals.total_revenue or 0
+    report_metrics = [
+        {"label": "Total Revenue", "value": _fmt_money(total_revenue)},
+        {"label": "Receipts", "value": _fmt_count(receipt_count)},
+        {"label": "Average Receipt", "value": _fmt_money((total_revenue or 0) / (receipt_count or 1))},
+        {"label": "Service Areas", "value": _fmt_count(len(service_area_labels))},
     ]
 
-    filter_fields = [
-        {
-            "name": "service_area_id",
-            "label": "Service Area",
-            "type": "select",
-            "value": str(service_area_id or ""),
-            "options": _service_area_options(),
-        },
-        {
-            "name": "q",
-            "label": "Search",
-            "type": "text",
-            "value": q_text,
-            "placeholder": "Name, username, job title, or phone",
-        },
-    ]
+    filter_fields = []
 
     return {
-        "report_title": "Staff Report",
-        "report_eyebrow": "Team intelligence",
-        "report_description": "Review staff users, their job titles, and the service areas they support.",
-        "filter_label": "Created Date",
+        "report_title": "Revenue Report",
+        "report_eyebrow": "Company revenue",
+        "report_description": "Review revenue collected from receipts across the selected period, grouped by service area, payment date, and payment method.",
+        "filter_label": "Payment Date",
         "from_date": start.isoformat() if start else "",
         "to_date": end.isoformat() if end else "",
-        "result_range": _range_text(start, end),
+        "result_range": "",
         "filter_fields": filter_fields,
-        "filter_summary": _active_filter_summary("Created Date", start, end, filter_fields),
-        "table_title": "Staff Members",
-        "table_note": "Only staff accounts are included in this report.",
+        "filter_summary": [],
+        "report_metrics": [],
+        "table_title": "Revenue Summary",
+        "table_note": "Revenue grouped by service area, payment date, and payment method.",
         "table_columns": [
-            {"key": "full_name", "label": "Full Name"},
-            {"key": "username", "label": "Username"},
-            {"key": "job_title", "label": "Job Title"},
             {"key": "service_area", "label": "Service Area"},
-            {"key": "phone", "label": "Phone"},
-            {"key": "created_date", "label": "Created Date", "align": "center"},
+            {"key": "payment_date", "label": "Payment Date", "align": "center"},
+            {"key": "payment_method", "label": "Method", "align": "center"},
+            {"key": "receipt_count", "label": "Receipts", "align": "end"},
+            {"key": "total_revenue", "label": "Revenue", "align": "end"},
+            {"key": "avg_receipt", "label": "Avg Receipt", "align": "end"},
         ],
         "table_rows": rows,
-        "empty_message": "No staff members matched the selected filters.",
-        "sheet_title": "Staff",
+        "empty_message": "No revenue records matched the selected filters.",
+        "sheet_title": "Revenue",
     }
-
 
 def build_collections_report():
     start, end = _date_range()
@@ -1000,7 +1006,7 @@ def build_collections_report():
         "filter_label": "Due Date",
         "from_date": start.isoformat() if start else "",
         "to_date": end.isoformat() if end else "",
-        "result_range": _range_text(start, end),
+        "result_range": "",
         "filter_fields": filter_fields,
         "filter_summary": _active_filter_summary("Due Date", start, end, filter_fields),
         "table_title": "Outstanding Collections",
@@ -1031,7 +1037,7 @@ REPORT_BUILDERS = {
     "readings": build_readings_report,
     "invoices": build_invoices_report,
     "receipts": build_receipts_report,
-    "staff": build_staff_report,
+    "revenue": build_revenue_report,
     "collections": build_collections_report,
 }
 
@@ -1097,12 +1103,11 @@ def receipts_report():
     return _render_report("receipts", _get_report_builder("receipts")())
 
 
-@reports_bp.route("/admin/reports/staff")
+@reports_bp.route("/admin/reports/revenue")
 @login_required
 @role_required("Admin")
-def staff_report():
-    return _render_report("staff", _get_report_builder("staff")())
-
+def revenue_report():
+    return _render_report("revenue", _get_report_builder("revenue")())
 
 @reports_bp.route("/admin/reports/collections")
 @login_required
@@ -1143,5 +1148,6 @@ def report_print(report_key):
     builder = _get_report_builder(report_key)
     spec = builder()
     return _render_print(report_key, spec)
+
 
 

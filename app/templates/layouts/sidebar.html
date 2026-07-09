@@ -11,7 +11,7 @@
       'reports.readings_report',
       'reports.invoices_report',
       'reports.receipts_report',
-      'reports.staff_report',
+      'reports.revenue_report',
       'reports.collections_report'
     ] %}
     {% set report_menu_open = current_endpoint in report_endpoints %}
@@ -19,6 +19,9 @@
     {% if role == 'staff' %}
       <a href="{{ url_for('staff_meter_reading.list_readings') }}"><i class="fas fa-tachograph-digital"></i> Meter Readings</a>
       <a href="{{ url_for('staff_main.staff_profile') }}"><i class="fas fa-id-card"></i> My Profile</a>
+      <a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    {% elif role == 'counter' %}
+      <a href="{{ url_for('receipt.list_receipts') }}"><i class="fas fa-file-invoice-dollar"></i> Receipts</a>
       <a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
     {% else %}
       <a href="{{ url_for('main.admin_dashboard') }}"><i class="fas fa-home"></i> Dashboard</a>
@@ -95,7 +98,7 @@
         <a href="{{ url_for('reports.readings_report') }}" class="submenu-item {% if current_endpoint == 'reports.readings_report' %}active{% endif %}">Reading Report</a>
         <a href="{{ url_for('reports.invoices_report') }}" class="submenu-item {% if current_endpoint == 'reports.invoices_report' %}active{% endif %}">Invoice Report</a>
         <a href="{{ url_for('reports.receipts_report') }}" class="submenu-item {% if current_endpoint == 'reports.receipts_report' %}active{% endif %}">Receipt Report</a>
-        <a href="{{ url_for('reports.staff_report') }}" class="submenu-item {% if current_endpoint == 'reports.staff_report' %}active{% endif %}">Staff Report</a>
+        <a href="{{ url_for('reports.revenue_report') }}" class="submenu-item {% if current_endpoint == 'reports.revenue_report' %}active{% endif %}">Revenue Report</a>
         <a href="{{ url_for('reports.collections_report') }}" class="submenu-item {% if current_endpoint == 'reports.collections_report' %}active{% endif %}">Collection Report</a>
       </div>
 
@@ -105,7 +108,7 @@
         <i class="fas fa-chevron-down nav-arrow"></i>
       </a>
       <div class="submenu">
-        <a href="{{ url_for('staff_account.list_staff') }}" class="submenu-item">Staff</a>
+        <a href="{{ url_for('staff_account.list_staff') }}" class="submenu-item">Users</a>
       </div>
 
       <a href="{{ url_for('auth.logout') }}">
@@ -115,3 +118,4 @@
     {% endif %}
   </nav>
 </aside>
+

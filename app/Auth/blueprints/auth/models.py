@@ -1,4 +1,4 @@
-﻿from app.extensions import db
+from app.extensions import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import date
 
@@ -19,7 +19,7 @@ class User(db.Model):
         nullable=True,
         index=True,
     )
-    role = db.Column(db.String(20), nullable=False, default="Customer")  # "Admin", "Staff", or "Customer"
+    role = db.Column(db.String(20), nullable=False, default="Counter")  # "Admin", "Staff", or "Counter"
 
     service_area = db.relationship("ServiceArea", backref=db.backref("staff_members", lazy="dynamic"), lazy="joined")
 

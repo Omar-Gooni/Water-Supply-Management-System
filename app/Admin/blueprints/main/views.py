@@ -7,6 +7,8 @@ from app.Admin.blueprints.customer.models import Customer
 from app.Admin.blueprints.meter.models import Meter
 from app.Admin.blueprints.meter_reading.models import MeterReading
 from app.Admin.blueprints.invoice.models import Invoice
+from app.Admin.blueprints.receipt.models import Receipt
+from app.extensions import db
 from app.Admin.blueprints.source.models import WaterSource
 from app.Admin.blueprints.storage_tank.models import StorageTank
 from app.Admin.blueprints.pipeline.models import Pipeline
@@ -27,12 +29,13 @@ def _format_count(value):
 def admin_dashboard():
     total_customers = Customer.query.count()
     active_customers = Customer.query.filter(Customer.status == "active").count()
-    total_staff = User.query.filter(User.role == "Staff").count()
     total_admins = User.query.filter(User.role == "Admin").count()
+    total_staff = User.query.filter(User.role == "Staff").count()
     total_meters = Meter.query.count()
     active_meters = Meter.query.filter(Meter.status == "Active").count()
     total_invoices = Invoice.query.count()
     unpaid_invoices = Invoice.query.filter(Invoice.status.in_(("issued", "unpaid", "partial"))).count()
+    total_revenue = db.session.query(func.coalesce(func.sum(Receipt.amount_paid), 0)).scalar()
     total_sources = WaterSource.query.count()
     total_tanks = StorageTank.query.count()
     total_pipelines = Pipeline.query.count()
@@ -73,10 +76,10 @@ def admin_dashboard():
             "variant": "cyan",
         },
         {
-            "label": "Meters",
-            "value": _format_count(total_meters),
-            "note": f"{active_meters} active meters",
-            "icon": "fa-solid fa-gauge-high",
+            "label": "Revenue",
+            "value": f"{float(total_revenue or 0):,.2f}",
+            "note": "Collected from receipts",
+            "icon": "fa-solid fa-sack-dollar",
             "variant": "teal",
         },
         {
@@ -86,20 +89,6 @@ def admin_dashboard():
             "icon": "fa-solid fa-file-invoice-dollar",
             "variant": "amber",
         },
-        {
-            "label": "Water Assets",
-            "value": _format_count(total_sources + total_tanks + total_pipelines),
-            "note": f"{total_sources} sources, {total_tanks} tanks, {total_pipelines} pipelines",
-            "icon": "fa-solid fa-water",
-            "variant": "violet",
-        },
-        {
-            "label": "Quality Logs",
-            "value": _format_count(total_chemicals + total_treatments + total_readings),
-            "note": f"{total_chemicals} chemicals, {total_treatments} treatments, {total_readings} readings",
-            "icon": "fa-solid fa-flask-vial",
-            "variant": "rose",
-        },
     ]
 
     return render_template(
@@ -107,5 +96,3 @@ def admin_dashboard():
         stats=stats,
         invoice_chart=invoice_chart,
     )
-
-

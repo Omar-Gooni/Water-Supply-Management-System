@@ -16,8 +16,8 @@ def _dashboard_for_role(role):
         return redirect(url_for("main.admin_dashboard"))
     if role_key == "staff":
         return redirect(url_for("staff_main.staff_profile"))
-    if role_key == "customer":
-        return redirect(url_for("auth.customer_dashboard"))
+    if role_key == "counter":
+        return redirect(url_for("receipt.list_receipts"))
     return redirect(url_for("auth.login"))
 
 
@@ -70,12 +70,6 @@ def login():
 
     return render_template("auth/login.html")
 
-
-@auth_bp.route("/customer/dashboard")
-@login_required
-@role_required("Customer")
-def customer_dashboard():
-    return render_template("auth/customer_dashboard.html")
 
 
 @auth_bp.route("/logout")

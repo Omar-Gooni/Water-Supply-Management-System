@@ -1,7 +1,7 @@
 # app/Admin/blueprints/meter/views.py
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, make_response
 from app.extensions import db
-from datetime import datetime
+from datetime import datetime, date, date
 import io, csv
 from openpyxl import Workbook  # pip install openpyxl
 
@@ -84,7 +84,7 @@ def create_meter():
     m = Meter(
         customer_id  = request.form.get("customer_id", type=int),
         meter_serial = (request.form.get("meter_serial") or "").strip(),
-        install_date = _to_date(request.form.get("install_date")),
+        install_date = date.today(),
         status       = (request.form.get("status") or "Active").strip(),
     )
 
@@ -98,8 +98,6 @@ def create_meter():
     if not cust or cust.status != "active":
         flash("Selected customer must be active.", "danger")
         return redirect(url_for("meter.list_meters", **request.args))
-
-    # if install_date omitted, model default will handle (date.today)
     db.session.add(m)
     try:
         db.session.commit()
@@ -119,7 +117,6 @@ def edit_meter(meter_id):
 
     m.customer_id  = request.form.get("customer_id", type=int)
     m.meter_serial = (request.form.get("meter_serial") or "").strip()
-    m.install_date = _to_date(request.form.get("install_date"))
     m.status       = (request.form.get("status") or "Active").strip()
 
     if not m.customer_id or not m.meter_serial:

@@ -95,6 +95,8 @@ def customer_reading_snapshot() -> dict[int, dict]:
 
 
 def apply_invoice_payment(invoice, payment_amount):
+    def _normalized_status(value):
+        return value if value in {'unpaid', 'partial', 'paid'} else 'unpaid'
     try:
         requested_amount = float(payment_amount or 0)
     except (TypeError, ValueError):
@@ -105,11 +107,11 @@ def apply_invoice_payment(invoice, payment_amount):
     balance_before = max(round(total_amount - paid_before, 2), 0)
 
     if requested_amount <= 0:
-        return 0.0, balance_before, balance_before, invoice.status or 'issued'
+        return 0.0, balance_before, balance_before, _normalized_status(invoice.status)
 
     applied_amount = round(min(requested_amount, balance_before), 2)
     if applied_amount <= 0:
-        return 0.0, balance_before, balance_before, invoice.status or 'issued'
+        return 0.0, balance_before, balance_before, _normalized_status(invoice.status)
 
     paid_after = round(paid_before + applied_amount, 2)
     balance_after = max(round(total_amount - paid_after, 2), 0)
@@ -118,10 +120,10 @@ def apply_invoice_payment(invoice, payment_amount):
     invoice.balance_due = balance_after
 
     if paid_after <= 0:
-        invoice.status = invoice.status or 'issued'
+        invoice.status = 'unpaid'
     elif balance_after <= 0:
         invoice.status = 'paid'
     else:
         invoice.status = 'partial'
 
-    return applied_amount, balance_before, balance_after, invoice.status or 'issued'
+    return applied_amount, balance_before, balance_after, _normalized_status(invoice.status)

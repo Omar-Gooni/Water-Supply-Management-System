@@ -1,181 +1,528 @@
 <!DOCTYPE html>
-<html class="light" lang="en">
+<html lang="en">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Invoice {{ inv.invoice_no }}</title>
 
-  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700&display=swap" rel="stylesheet"/>
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 
   <style>
-    .material-symbols-outlined {
-      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    :root {
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #d7e0ea;
+      --paper: #ffffff;
+      --surface: #f8fafc;
+      --accent: #0f4c81;
     }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Manrope', sans-serif;
+      background: linear-gradient(180deg, #edf7ff 0%, #f8fcff 46%, #eaf5ff 100%);
+      color: var(--ink);
+      min-height: 100vh;
+      background-attachment: fixed;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .75rem .9rem;
+      background: rgba(255, 255, 255, .94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+
+    .title {
+      text-align: center;
+      flex: 1;
+    }
+
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+        .wrap {
+      flex: 1 1 auto;
+      min-height: 0;
+      padding: .5rem .9rem .75rem;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+
+        .invoice {
+      max-width: 790px;
+      align-self: flex-start;
+      margin: 0 auto;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.07);
+      overflow: hidden;
+    }
+
+    @media screen {
+      .invoice {
+        transform: scale(.88);
+        transform-origin: top center;
+        margin-bottom: -8%;
+      }
+    }
+
+    .invoice-head {
+      padding: .85rem .85rem .7rem;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .brand-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: .85rem;
+    }
+
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--accent);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      flex: none;
+    }
+
+    .brand-name {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: -.02em;
+    }
+
+    .brand-subtitle {
+      margin: .12rem 0 0;
+      color: var(--muted);
+      font-size: .86rem;
+    }
+
+    .invoice-meta {
+      text-align: right;
+    }
+
+    .invoice-meta .kicker {
+      color: var(--muted);
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      font-weight: 800;
+    }
+
+    .invoice-meta h1 {
+      margin: .15rem 0 0;
+      font-size: 1.35rem;
+      letter-spacing: -.03em;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      padding: .35rem .65rem;
+      border-radius: 999px;
+      font-size: .75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .status-unpaid { background: rgba(245, 158, 11, 0.14); color: #9a5800; }
+    .status-partial { background: rgba(14, 165, 233, 0.12); color: #0369a1; }
+    .status-paid { background: rgba(34, 197, 94, 0.12); color: #166534; }
+
+    .customer-name {
+      margin-top: .65rem;
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--ink);
+      letter-spacing: -.02em;
+    }
+
+    .body {
+      padding: .72rem;
+    }
+
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: .6rem;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      font-size: .98rem;
+      letter-spacing: -.02em;
+    }
+
+    .table-shell {
+      padding: .55rem;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .75);
+      margin-bottom: .55rem;
+    }
+
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: none;
+      border-radius: 12px;
+      overflow: hidden;
+      table-layout: auto;
+    }
+
+    .items-table thead th {
+      background: linear-gradient(180deg, #0f172a 0%, #13213b 100%);
+      color: #fff;
+      padding: .68rem .65rem;
+      font-size: .7rem;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .items-table tbody td {
+      padding: .72rem .65rem;
+      border-top: 1px solid rgba(148, 163, 184, 0.16);
+      font-size: .9rem;
+      vertical-align: middle;
+      background: #fff;
+    }
+
+    .items-table tbody tr:nth-child(even) td {
+      background: #fbfdff;
+    }
+
+    .text-end {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .period-value {
+      font-weight: 800;
+      color: var(--ink);
+      line-height: 1.25;
+    }
+
+    .period-note {
+      color: var(--muted);
+      font-size: .8rem;
+      line-height: 1.25;
+      margin-top: .15rem;
+    }
+
+    .metric {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .summary-card {
+      margin-top: .55rem;
+      padding: .78rem .82rem;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+    }
+
+    .summary-lines {
+      display: grid;
+      gap: .48rem;
+    }
+
+    .summary-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: center;
+      font-size: .92rem;
+    }
+
+    .summary-line .label {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .summary-line.total {
+      padding-top: .5rem;
+      border-top: 1px dashed rgba(148, 163, 184, 0.3);
+      font-weight: 800;
+    }
+
+    .summary-line.total .value {
+      color: var(--accent);
+    }
+
+    .invoice-footer {
+      margin-top: .55rem;
+      padding-top: .5rem;
+      border-top: 1px solid var(--line);
+    }
+
+    .signature-line {
+      height: 1px;
+      background: #cbd5e1;
+      margin-bottom: .65rem;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1.1fr .7fr;
+      gap: .75rem;
+      align-items: center;
+    }
+
+    .footer-block {
+      min-height: 64px;
+      padding: .1rem 0;
+    }
+
+    .footer-label {
+      color: var(--muted);
+      font-size: .72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: .28rem;
+    }
+
+    .footer-text {
+      color: var(--ink);
+      font-size: .88rem;
+      line-height: 1.45;
+      font-weight: 600;
+    }
+
+    .footer-contact {
+      display: grid;
+      gap: .25rem;
+    }
+
+    .stamp-box {
+      width: 96px;
+      height: 96px;
+      margin-left: auto;
+      border: 2px dashed #94a3b8;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      color: #64748b;
+      font-size: .78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      background: #fbfdff;
+    }
+
     @media print {
-      body {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+      html, body {
+        height: auto;
+        overflow: visible;
+        background: #fff;
       }
-      .no-print {
-        display: none;
+      .no-print { display: none !important; }
+      .wrap { padding: 0; display: block; overflow: visible; }
+      .invoice {
+        max-width: none;
+        box-shadow: none;
+        border: none;
+        transform: none;
+        margin-bottom: 0;
       }
-      .print-p-0 {
-        padding: 0;
-      }
-      .print-shadow-none {
-        box-shadow: none !important;
+      .items-table thead th {
+        background: #0f172a !important;
+        color: #fff !important;
       }
     }
-    body { min-height: max(884px, 100dvh); }
+
+    @media (max-width: 900px) {
+      .invoice-meta { text-align: left; }
+    }
+
+    @media (max-width: 640px) {
+      .section-title { align-items: flex-start; flex-direction: column; }
+      .summary-line { flex-direction: column; align-items: flex-start; gap: .15rem; }
+      .footer-grid { grid-template-columns: 1fr; }
+      .stamp-box { margin-left: 0; }
+    }
   </style>
-
-  <script id="tailwind-config">
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            "primary": "#2eaadf",
-            "background-light": "#f8f9fa",
-            "background-dark": "#121c20",
-            "text-light": "#333333",
-            "text-dark": "#f0f0f0",
-            "border-light": "#E0E0E0",
-            "border-dark": "#3a4448",
-            "row-light": "#F5F5F5",
-            "row-dark": "#1a2428"
-          },
-          fontFamily: {
-            "display": ["Public Sans", "sans-serif"]
-          },
-          borderRadius: {
-            "DEFAULT": "0.125rem",
-            "lg": "0.25rem",
-            "xl": "0.5rem",
-            "full": "0.75rem"
-          },
-          boxShadow: {
-            'paper': '0 4px 14px 0 rgba(0, 0, 0, 0.05)',
-          }
-        },
-      },
-    }
-  </script>
 </head>
-<body class="font-display bg-background-light dark:bg-background-dark">
-<div class="relative flex min-h-screen w-full flex-col text-text-light dark:text-text-dark overflow-x-hidden">
-
-  <div class="flex items-center bg-background-light dark:bg-background-dark p-4 justify-between border-b border-border-light dark:border-border-dark no-print">
-    <button class="flex items-center justify-center h-12 w-12 text-text-light dark:text-text-dark"
-            onclick="window.history.back()">
-      <span class="material-symbols-outlined text-2xl">arrow_back</span>
-    </button>
-
-    <h2 class="text-lg font-bold flex-1 text-center">Invoice {{ inv.invoice_no }}</h2>
-
-    <div class="flex items-center justify-end gap-1">
-      <button class="flex items-center justify-center h-12 w-12 text-text-light dark:text-text-dark"
-              onclick="downloadPDF()" title="Download PDF">
-        <span class="material-symbols-outlined text-2xl">download</span>
-      </button>
-
-      <button class="flex items-center justify-center h-12 w-12 text-text-light dark:text-text-dark"
-              onclick="window.print()" title="Print">
-        <span class="material-symbols-outlined text-2xl">print</span>
-      </button>
+<body>
+  {% set status = (inv.status or 'unpaid')|lower %}
+  <div class="topbar no-print">
+    <button class="icon-btn" onclick="window.history.back()" title="Back"><i class="fa-solid fa-arrow-left"></i></button>
+    <div class="title">
+      <div style="font-weight:800; letter-spacing:-0.02em;">Invoice {{ inv.invoice_no }}</div>
+      <div style="color:#64748b; font-size:.9rem;">Printable billing record</div>
+    </div>
+    <div style="display:flex; gap:.6rem;">
+      <button class="icon-btn" onclick="downloadPDF()" title="Download PDF"><i class="fa-solid fa-download"></i></button>
+      <button class="icon-btn" onclick="window.print()" title="Print"><i class="fa-solid fa-print"></i></button>
     </div>
   </div>
 
-  <div class="p-4 sm:p-6 print-p-0 flex-grow">
-    <div id="invoiceArea" class="max-w-3xl mx-auto bg-white dark:bg-background-dark p-6 sm:p-8 rounded-lg shadow-paper print-shadow-none">
-
-      <div class="flex justify-between items-start mb-6">
-        <div class="flex items-center space-x-3">
-          <div class="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center">
-            <span class="material-symbols-outlined text-primary text-3xl">water_drop</span>
+  <div class="wrap">
+    <div id="invoiceArea" class="invoice">
+      <div class="invoice-head">
+        <div class="brand-row">
+          <div class="brand-lockup">
+            <div class="brand-mark"><i class="fas fa-tint"></i></div>
+            <div>
+              <p class="brand-name">Water Supply Management System</p>
+              <p class="brand-subtitle">Official customer invoice and payment summary</p>
+            </div>
+          </div>
+          <div class="invoice-meta">
+            <div class="kicker">Invoice</div>
+            <h1>{{ inv.invoice_no }}</h1>
+            <div style="margin-top:.45rem;">
+              <span class="status-badge status-{{ status }}"><i class="fa-solid fa-circle"></i> {{ status.title() }}</span>
+            </div>
           </div>
         </div>
-        <div class="text-right text-xs text-slate-600 dark:text-slate-400">
-          <p class="font-bold text-base text-text-light dark:text-text-dark">WSMS</p>
-          <p>Water Supply Management System</p>
-        </div>
+
+        <div class="customer-name">{{ cust.customer_name if cust else '' }}</div>
       </div>
 
-      <div class="mb-6">
-        <h3 class="text-lg font-bold mb-3 text-primary">Invoice Details</h3>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm text-left">
-            <thead class="text-xs text-slate-500 dark:text-slate-400 uppercase bg-row-light dark:bg-row-dark">
+      <div class="body">
+        <div class="section-title">
+          <h2>Billing Summary</h2>
+          <span class="status-badge status-{{ status }}"><i class="fa-solid fa-file-invoice"></i> Invoice Details</span>
+        </div>
+
+        <div class="table-shell">
+                    <table class="items-table">
+            <colgroup>
+              <col style="width: 38%;">
+              <col style="width: 15%;">
+              <col style="width: 15%;">
+              <col style="width: 15%;">
+              <col style="width: 17%;">
+            </colgroup>
+            <thead>
               <tr>
-                <th class="px-4 py-3" scope="col">Invoice #</th>
-                <th class="px-4 py-3" scope="col">Customer Name</th>
-                <th class="px-4 py-3" scope="col">Due Date</th>
-                <th class="px-4 py-3 text-right" scope="col">Last Reading (m3)</th>
-                <th class="px-4 py-3 text-right" scope="col">Current Reading (m3)</th>
-                <th class="px-4 py-3 text-right" scope="col">Used (m3)</th>
-                <th class="px-4 py-3 text-right" scope="col">Amount</th>
+                <th>Date</th>
+                <th class="text-end">Previous Read</th>
+                <th class="text-end">Current Read</th>
+                <th class="text-end">Usage</th>
+                <th class="text-end">Amount</th>
               </tr>
             </thead>
             <tbody>
-              <tr class="border-b border-border-light dark:border-border-dark bg-white dark:bg-background-dark">
-                <td class="px-4 py-4 font-medium">{{ inv.invoice_no }}</td>
-                <td class="px-4 py-4">{{ cust.customer_name if cust else '' }}</td>
-                <td class="px-4 py-4">{{ inv.due_date.strftime('%Y-%m-%d') if inv.due_date else '' }}</td>
-                <td class="px-4 py-4 text-right">{{ '%.2f'|format(inv.last_read_m3 or 0) }}</td>
-                <td class="px-4 py-4 text-right">{{ '%.2f'|format(inv.current_read_m3 or 0) }}</td>
-                <td class="px-4 py-4 text-right">{{ '%.2f'|format(inv.used_water_m3 or 0) }}</td>
-                <td class="px-4 py-4 text-right">{{ '%.2f'|format(inv.amount or 0) }} {{ inv.currency or 'USD' }}</td>
+              <tr>
+                <td>
+                  <div class="period-value">{{ inv.issue_date.strftime('%Y-%m-%d') if inv.issue_date else (inv.period_end.strftime('%Y-%m-%d') if inv.period_end else '') }}</div>
+                  <div class="period-note">Water consumption billed for this cycle</div>
+                </td>
+                <td class="text-end metric">{{ '%.2f'|format(inv.last_read_m3 or 0) }}</td>
+                <td class="text-end metric">{{ '%.2f'|format(inv.current_read_m3 or 0) }}</td>
+                <td class="text-end metric">{{ '%.2f'|format(inv.used_water_m3 or 0) }}</td>
+                <td class="text-end metric" style="color:var(--accent);">{{ '%.2f'|format(inv.amount or 0) }} {{ inv.currency or 'USD' }}</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </div>
 
-      <div class="bg-primary/20 rounded-xl p-5 text-center mb-6">
-        <p class="text-sm text-primary uppercase font-bold">Total Amount Due</p>
-        <p class="text-4xl font-bold text-primary tracking-tight mt-1">{{ '%.2f'|format(inv.amount or 0) }} {{ inv.currency or 'USD' }}</p>
-      </div>
-
-      <div class="text-sm text-slate-600 dark:text-slate-400 mt-8">
-        <div class="text-center mb-8">
-          <p class="font-bold text-base text-primary">Thank you for being a valued customer!</p>
-          <p class="text-xs">Your timely payments help us maintain and improve our water services.</p>
-          <br>
-          <p>{{ today }}</p>
-        </div>
-
-        <div class="grid grid-cols-2 gap-8 pt-8 text-xs text-text-light dark:text-text-dark">
-          <div class="flex flex-col">
-            <div class="border-b border-border-light dark:border-border-dark pt-12"></div>
-            <p class="font-bold mt-2 text-center">Manager Signature</p>
-          </div>
-          <div class="flex flex-col">
-            <div class="border-b border-border-light dark:border-border-dark pt-12"></div>
-            <p class="font-bold mt-2 text-center">Billing Person Signature</p>
+        <div class="summary-card">
+          <div class="summary-lines">
+            <div class="summary-line">
+              <span class="label">Amount due</span>
+              <span class="value">{{ '%.2f'|format(inv.amount or 0) }} {{ inv.currency or 'USD' }}</span>
+            </div>
+            <div class="summary-line">
+              <span class="label">Amount paid</span>
+              <span class="value">{{ '%.2f'|format(inv.amount_paid or 0) }} {{ inv.currency or 'USD' }}</span>
+            </div>
+            <div class="summary-line total">
+              <span class="label">Balance remaining</span>
+              <span class="value">{{ '%.2f'|format(inv.balance_due or 0) }} {{ inv.currency or 'USD' }}</span>
+            </div>
           </div>
         </div>
-      </div>
 
+        <div class="invoice-footer">
+          <div class="signature-line"></div>
+          <div class="footer-grid">
+            <div class="footer-block">
+              <div class="footer-label">Authorized By</div>
+              <div class="footer-text">WSMS Billing Department</div>
+            </div>
+            <div class="footer-block">
+              <div class="footer-label">Contact</div>
+              <div class="footer-contact">
+                <div class="footer-text">Phone: 0617999682</div>
+                <div class="footer-text">Email: omar@gmail.com</div>
+              </div>
+            </div>
+            <div class="footer-block">
+              <div class="stamp-box">Stamp</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
-</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script>
-  function downloadPDF() {
-    const element = document.getElementById('invoiceArea');
-    const opt = {
-      margin: 0.5,
-      filename: '{{ inv.invoice_no }}.pdf',
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-    };
-    html2pdf().set(opt).from(element).save();
-  }
-</script>
-
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script>
+    function downloadPDF() {
+      const element = document.getElementById('invoiceArea');
+      const opt = {
+        margin: 0.35,
+        filename: '{{ inv.invoice_no }}.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(element).save();
+    }
+  </script>
 </body>
 </html>

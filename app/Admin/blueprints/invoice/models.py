@@ -26,7 +26,7 @@ class Invoice(db.Model):
 
     issue_date = db.Column(db.Date, nullable=False, default=date.today)
     due_date = db.Column(db.Date, nullable=False)
-    status = db.Column(db.String(16), nullable=False, default="issued")  # issued/unpaid/partial/paid
+    status = db.Column(db.String(16), nullable=False, default="unpaid")  # unpaid/partial/paid
     currency = db.Column(db.String(8), nullable=True)
 
     remarks = db.Column(db.String(255), nullable=True)

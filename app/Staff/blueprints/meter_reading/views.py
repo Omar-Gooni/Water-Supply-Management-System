@@ -153,7 +153,7 @@ def create_reading():
 
     db.session.add(rec)
     db.session.flush()
-    sync_invoice_from_reading(rec, status="issued")
+    sync_invoice_from_reading(rec)
     db.session.commit()
     flash("Meter reading created and invoice generated.", "success")
     return redirect(url_for("staff_meter_reading.list_readings", **request.args))
@@ -200,7 +200,7 @@ def edit_reading(rec_id):
     rec.rate_per_m3 = rate_per_m3
     rec.amount_due = amount_due
 
-    sync_invoice_from_reading(rec, status="issued")
+    sync_invoice_from_reading(rec)
     db.session.commit()
     flash("Meter reading updated and invoice synchronized.", "success")
     return redirect(url_for("staff_meter_reading.list_readings", **request.args))

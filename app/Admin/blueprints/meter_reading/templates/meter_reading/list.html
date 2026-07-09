@@ -205,12 +205,10 @@
               <label class="form-label">Meter</label>
               <input id="create_meterDisplay" class="form-control form-control-sm" value="" readonly>
               <input type="hidden" id="create_meterIdInput" name="meter_id">
+              <input type="hidden" id="create_reading_date" name="reading_date">
             </div>
 
-            <div class="col-md-6">
-              <label class="form-label">Reading Date</label>
-              <input name="reading_date" type="date" class="form-control form-control-sm" required>
-            </div>
+
 
             <div class="col-md-6">
               <label class="form-label">Last (m3)</label>
@@ -275,12 +273,10 @@
               <label class="form-label">Meter</label>
               <input id="edit_meterDisplay" class="form-control form-control-sm" value="" readonly>
               <input type="hidden" id="edit_meterIdInput" name="meter_id">
+              <input type="hidden" id="edit_reading_date" name="reading_date">
             </div>
 
-            <div class="col-md-6">
-              <label class="form-label">Reading Date</label>
-              <input name="reading_date" id="edit_reading_date" type="date" class="form-control form-control-sm" required>
-            </div>
+
 
             <div class="col-md-6">
               <label class="form-label">Last (m3)</label>
@@ -384,6 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('create_meterDisplay').value = '';
     document.getElementById('create_meterIdInput').value = '';
     document.getElementById('create_lastInput').value = '0.00';
+    document.getElementById('create_reading_date').value = new Date().toISOString().split('T')[0];
     document.getElementById('create_rateInput').value = DEFAULT_RATE.toFixed(2);
     document.getElementById('create_usedInput').value = '';
     document.getElementById('create_amountInput').value = '';

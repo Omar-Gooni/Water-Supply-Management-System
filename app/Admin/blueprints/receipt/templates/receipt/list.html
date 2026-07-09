@@ -14,11 +14,13 @@
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
       <h4 class="mb-0">Receipts</h4>
-      <div class="text-muted">Latest receipts recorded by admin.</div>
+      <div class="text-muted">Latest receipts recorded in the system.</div>
     </div>
-    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#receiptModal">
-      <i class="fa fa-plus me-1"></i> Receipt
-    </button>
+    {% if can_manage_receipts %}
+      <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#receiptModal">
+        <i class="fa fa-plus me-1"></i> Add Receipt
+      </button>
+    {% endif %}
   </div>
 
   {% with messages=get_flashed_messages(with_categories=true) %}
@@ -66,9 +68,30 @@
             <td>{{ '%.2f'|format(receipt.balance_after or 0) }} {{ receipt.invoice.currency if receipt.invoice and receipt.invoice.currency else summary_currency }}</td>
             <td>{{ receipt.payment_date.strftime('%d %b %Y') if receipt.payment_date else 'N/A' }}</td>
             <td class="text-end">
-              <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('receipt.print_receipt', receipt_id=receipt.id) }}">
-                Print
-              </a>
+              <div class="d-inline-flex flex-wrap justify-content-end gap-1">
+                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('receipt.print_receipt', receipt_id=receipt.id) }}">
+                  Print
+                </a>
+                {% if can_manage_receipts %}
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary btn-sm js-edit-receipt"
+                    data-edit-action="{{ url_for('receipt.edit_receipt', receipt_id=receipt.id) }}"
+                    data-receipt-no="{{ receipt.receipt_no }}"
+                    data-customer-name="{{ receipt.customer.customer_name if receipt.customer else 'N/A' }}"
+                    data-invoice-no="{{ receipt.invoice.invoice_no if receipt.invoice else 'N/A' }}"
+                    data-amount-paid="{{ '%.2f'|format(receipt.amount_paid or 0) }}"
+                    data-payment-method="{{ receipt.payment_method or 'cash' }}"
+                    data-payment-date="{{ receipt.payment_date.isoformat() if receipt.payment_date else '' }}"
+                    data-remarks="{{ receipt.remarks or '' }}"
+                  >
+                    Edit
+                  </button>
+                  <form method="POST" action="{{ url_for('receipt.delete_receipt', receipt_id=receipt.id) }}" class="d-inline" onsubmit="return confirm('Delete receipt {{ receipt.receipt_no }}? This will update invoice balances.');">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                  </form>
+                {% endif %}
+              </div>
             </td>
           </tr>
         {% else %}
@@ -86,12 +109,21 @@
     <div class="modal-content">
       <form method="POST" action="{{ url_for('receipt.create_receipts') }}" id="receiptForm">
         <div class="modal-header">
-          <h5 class="modal-title" id="receiptModalLabel">Receipt</h5>
+          <h5 class="modal-title" id="receiptModalLabel">New Receipt</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
           <div class="row g-3">
             <div class="col-md-4">
+              <label class="form-label fw-semibold">Mode</label>
+              <select name="scope" id="receiptMode" class="form-select">
+                <option value="all_customers" {{ 'selected' if scope == 'all_customers' else '' }}>All Customers</option>
+                <option value="service_area" {{ 'selected' if scope == 'service_area' else '' }}>Service Area</option>
+                <option value="one_customer" {{ 'selected' if scope == 'one_customer' else '' }}>One Customer</option>
+              </select>
+            </div>
+
+            <div class="col-md-4" id="receiptServiceAreaWrap">
               <label class="form-label fw-semibold">Service Area</label>
               <select name="service_area_id" id="receiptServiceArea" class="form-select">
                 <option value="">Choose service area</option>
@@ -102,13 +134,7 @@
                 {% endfor %}
               </select>
             </div>
-            <div class="col-md-4">
-              <label class="form-label fw-semibold">Scope</label>
-              <select name="scope" id="receiptScope" class="form-select">
-                <option value="all_customers" {{ 'selected' if scope == 'all_customers' else '' }}>All Customers</option>
-                <option value="one_customer" {{ 'selected' if scope == 'one_customer' else '' }}>One Customer</option>
-              </select>
-            </div>
+
             <div class="col-md-4" id="receiptCustomerWrap">
               <label class="form-label fw-semibold">Customer</label>
               <select name="customer_id" id="receiptCustomer" class="form-select">
@@ -129,51 +155,42 @@
                   </option>
                 {% endfor %}
               </select>
-              <div class="form-text">Choose the service area first, then pick a customer if needed.</div>
             </div>
 
             <div class="col-12">
-              <div class="table-responsive border rounded">
-                <table class="table table-sm mb-0 align-middle">
-                  <tbody>
-                    <tr>
-                      <th style="width: 35%;">View</th>
-                      <td id="receiptSummaryLabel">{{ initial_label }}</td>
-                    </tr>
-                    <tr>
-                      <th>Total Invoice Amount</th>
-                      <td id="receiptSummaryTotal">{{ '%.2f'|format(initial_total or 0) }} {{ summary_currency }}</td>
-                    </tr>
-                    <tr>
-                      <th>Paid Amount</th>
-                      <td id="receiptSummaryPaid">{{ '%.2f'|format(initial_paid or 0) }} {{ summary_currency }}</td>
-                    </tr>
-                    <tr>
-                      <th>Remaining Balance</th>
-                      <td id="receiptSummaryBalance">{{ '%.2f'|format(initial_balance or 0) }} {{ summary_currency }}</td>
-                    </tr>
-                    <tr id="receiptPaymentRow" class="{{ 'd-none' if scope != 'one_customer' or not selected_customer else '' }}">
-                      <th>Paying Amount</th>
-                      <td>
-                        <input
-                          type="number"
-                          name="payment_amount"
-                          id="receiptPaymentAmount"
-                          class="form-control"
-                          step="0.01"
-                          min="0.01"
-                          value="{{ '%.2f'|format(initial_payment_amount or 0) if scope == 'one_customer' else '' }}"
-                        >
-                      </td>
-                    </tr>
-                    <tr id="receiptRemainingRow" class="{{ 'd-none' if scope != 'one_customer' or not selected_customer else '' }}">
-                      <th>Remaining After Payment</th>
-                      <td id="receiptRemainingAfter">{{ '%.2f'|format(initial_remaining_after) }} {{ summary_currency }}</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div class="border rounded-3 bg-light p-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                  <div>
+                    <div class="text-muted small">Preview</div>
+                    <div class="fw-semibold" id="receiptSummaryLabel">{{ initial_label }}</div>
+                  </div>
+                  <div class="text-end">
+                    <div class="text-muted small">Outstanding</div>
+                    <div class="fs-5 fw-bold" id="receiptSummaryTotal">{{ '%.2f'|format(initial_total or 0) }} {{ summary_currency }}</div>
+                  </div>
+                </div>
+
+                <div class="row g-3 mt-2">
+                  <div class="col-md-6" id="receiptPaymentWrap">
+                    <label class="form-label fw-semibold">Amount</label>
+                    <input
+                      type="number"
+                      name="payment_amount"
+                      id="receiptPaymentAmount"
+                      class="form-control"
+                      step="0.01"
+                      min="0.01"
+                      value="{{ '%.2f'|format(initial_payment_amount or 0) if scope == 'one_customer' else '' }}"
+                    >
+                  </div>
+                  <div class="col-md-6" id="receiptRemainingWrap">
+                    <label class="form-label fw-semibold">Remaining After Payment</label>
+                    <div id="receiptRemainingAfter" class="form-control-plaintext fw-semibold">{{ '%.2f'|format(initial_remaining_after) }} {{ summary_currency }}</div>
+                  </div>
+                </div>
+
+                <div class="form-text mt-2" id="receiptScopeNote"></div>
               </div>
-              <div class="form-text mt-2" id="receiptScopeNote"></div>
             </div>
 
             <div class="col-md-4">
@@ -192,9 +209,51 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="submit" class="btn btn-primary" id="receiptSubmitBtn">
-            {{ 'Save Receipt' if scope == 'one_customer' else 'Create Receipts for All Customers' }}
-          </button>
+          <button type="submit" class="btn btn-primary" id="receiptSubmitBtn">Create Receipts</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="receiptEditModal" tabindex="-1" aria-labelledby="receiptEditModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <form method="POST" id="receiptEditForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="receiptEditModalLabel">Edit Receipt</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info mb-3">
+            Editing <strong id="editReceiptNo"></strong> for <strong id="editReceiptCustomer"></strong> on invoice <strong id="editReceiptInvoice"></strong>.
+          </div>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Amount Paid</label>
+              <input type="number" name="amount_paid" id="editReceiptAmount" class="form-control" step="0.01" min="0.01" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Payment Date</label>
+              <input type="date" name="payment_date" id="editReceiptDate" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Payment Method</label>
+              <select name="payment_method" id="editReceiptMethod" class="form-select" required>
+                {% for value, label in payment_methods.items() %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Remarks</label>
+              <input type="text" name="remarks" id="editReceiptRemarks" class="form-control" placeholder="Optional note">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-primary">Update Receipt</button>
         </div>
       </form>
     </div>
@@ -208,66 +267,54 @@
     const shouldOpenModal = {{ 'true' if receipt_modal_open else 'false' }};
     const receiptModalEl = document.getElementById('receiptModal');
     const receiptModal = receiptModalEl ? bootstrap.Modal.getOrCreateInstance(receiptModalEl) : null;
+    const receiptMode = document.getElementById('receiptMode');
+    const serviceAreaWrap = document.getElementById('receiptServiceAreaWrap');
     const serviceAreaSelect = document.getElementById('receiptServiceArea');
-    const scopeSelect = document.getElementById('receiptScope');
     const customerWrap = document.getElementById('receiptCustomerWrap');
     const customerSelect = document.getElementById('receiptCustomer');
-    const paymentRow = document.getElementById('receiptPaymentRow');
-    const remainingRow = document.getElementById('receiptRemainingRow');
+    const paymentWrap = document.getElementById('receiptPaymentWrap');
+    const remainingWrap = document.getElementById('receiptRemainingWrap');
     const paymentAmount = document.getElementById('receiptPaymentAmount');
     const remainingAfter = document.getElementById('receiptRemainingAfter');
     const summaryLabel = document.getElementById('receiptSummaryLabel');
     const summaryTotal = document.getElementById('receiptSummaryTotal');
-    const summaryPaid = document.getElementById('receiptSummaryPaid');
-    const summaryBalance = document.getElementById('receiptSummaryBalance');
     const scopeNote = document.getElementById('receiptScopeNote');
     const submitBtn = document.getElementById('receiptSubmitBtn');
     const defaultCurrency = {{ summary_currency|tojson }};
-    const initialTotals = {
-      total: {{ '%.2f'|format(initial_total or 0) }},
-      paid: {{ '%.2f'|format(initial_paid or 0) }},
-      balance: {{ '%.2f'|format(initial_balance or 0) }},
-    };
+    const editModalEl = document.getElementById('receiptEditModal');
+    const editModal = editModalEl ? bootstrap.Modal.getOrCreateInstance(editModalEl) : null;
+    const editForm = document.getElementById('receiptEditForm');
+    const editReceiptNo = document.getElementById('editReceiptNo');
+    const editReceiptCustomer = document.getElementById('editReceiptCustomer');
+    const editReceiptInvoice = document.getElementById('editReceiptInvoice');
+    const editReceiptAmount = document.getElementById('editReceiptAmount');
+    const editReceiptDate = document.getElementById('editReceiptDate');
+    const editReceiptMethod = document.getElementById('editReceiptMethod');
+    const editReceiptRemarks = document.getElementById('editReceiptRemarks');
 
     function money(value) {
       const n = Number(value || 0);
       return n.toFixed(2);
     }
 
-    function setSummary(totals, label) {
-      summaryLabel.textContent = label || 'Select service area';
-      summaryTotal.textContent = `${money(totals.total)} ${defaultCurrency}`;
-      summaryPaid.textContent = `${money(totals.paid)} ${defaultCurrency}`;
-      summaryBalance.textContent = `${money(totals.balance)} ${defaultCurrency}`;
-    }
-
-    function selectedAreaId() {
-      return serviceAreaSelect.value;
-    }
-
     function customerOptions() {
       return Array.from(customerSelect.options).filter((option) => option.value);
     }
 
-    function filterCustomerOptions() {
-      const areaId = selectedAreaId();
+    function allCustomerTotals() {
+      let total = 0;
+      let paid = 0;
+      let balance = 0;
       customerOptions().forEach((option) => {
-        const match = !!areaId && option.dataset.serviceAreaId === areaId;
-        option.hidden = !match;
-        option.disabled = !match;
+        total += Number(option.dataset.total || 0);
+        paid += Number(option.dataset.paid || 0);
+        balance += Number(option.dataset.balance || 0);
       });
-      if (!areaId) {
-        customerSelect.value = '';
-      } else if (customerSelect.value) {
-        const selected = customerSelect.selectedOptions[0];
-        if (!selected || selected.hidden) {
-          customerSelect.value = '';
-        }
-      }
+      return { total, paid, balance };
     }
 
     function areaTotals() {
-      const areaId = selectedAreaId();
+      const areaId = serviceAreaSelect.value;
       if (!areaId) {
         return { total: 0, paid: 0, balance: 0 };
       }
@@ -300,70 +347,87 @@
       };
     }
 
-    function updatePaymentFields(totals) {
+    function setSummary(label, totals) {
+      summaryLabel.textContent = label || 'Select a mode';
+      summaryTotal.textContent = `${money(totals.balance || 0)} ${defaultCurrency}`;
+    }
+
+    function updateRemaining(totals) {
       if (!paymentAmount || !remainingAfter) {
         return;
       }
       const amount = paymentAmount.value === '' ? totals.balance : Number(paymentAmount.value || 0);
       const remaining = Math.max(Number(totals.balance || 0) - amount, 0);
-      paymentAmount.max = money(totals.balance || 0);
       remainingAfter.textContent = `${money(remaining)} ${defaultCurrency}`;
+      paymentAmount.max = money(totals.balance || 0);
     }
 
     function updateFormState() {
-      filterCustomerOptions();
-      const areaId = selectedAreaId();
-      const scope = scopeSelect.value;
-      const areaLabel = areaId ? serviceAreaSelect.selectedOptions[0]?.textContent?.trim() : 'Select service area';
-      const totalsFromArea = areaTotals();
+      const mode = receiptMode.value;
+      const allTotals = allCustomerTotals();
+      const selectedAreaTotals = areaTotals();
       const customerTotals = selectedCustomerTotals();
-      let totals = totalsFromArea;
-      let label = areaId ? `${areaLabel} customers` : 'Select service area';
 
-      if (scope === 'one_customer') {
-        customerWrap.classList.remove('d-none');
-        if (customerTotals) {
-          totals = customerTotals;
-          label = `${customerTotals.name}${customerTotals.code ? ` (${customerTotals.code})` : ''}`;
-          paymentRow.classList.remove('d-none');
-          remainingRow.classList.remove('d-none');
-          if (!paymentAmount.value || Number(paymentAmount.value) <= 0 || Number(paymentAmount.value) > Number(customerTotals.balance || 0)) {
-            paymentAmount.value = money(customerTotals.balance || 0);
-          }
-          updatePaymentFields(customerTotals);
-          submitBtn.disabled = !areaId || Number(customerTotals.balance || 0) <= 0;
-          submitBtn.textContent = 'Save Receipt';
-          scopeNote.textContent = 'Payments are applied to the customer\'s oldest unpaid invoices first.';
-        } else {
-          paymentRow.classList.add('d-none');
-          remainingRow.classList.add('d-none');
-          paymentAmount.value = '';
-          submitBtn.disabled = true;
-          submitBtn.textContent = 'Save Receipt';
-          scopeNote.textContent = areaId ? 'Choose a customer to see invoice totals and the paying amount field.' : 'Choose a service area first, then pick a customer.';
-        }
-      } else {
+      if (mode === 'all_customers') {
+        serviceAreaWrap.classList.add('d-none');
         customerWrap.classList.add('d-none');
-        paymentRow.classList.add('d-none');
-        remainingRow.classList.add('d-none');
-        paymentAmount.value = '';
-        submitBtn.textContent = 'Create Receipts for All Customers';
-        submitBtn.disabled = !areaId || Number(totals.balance || 0) <= 0;
-        scopeNote.textContent = areaId
-          ? 'This will create separate receipts for every customer in the selected service area using each customer\'s full outstanding balance.'
-          : 'Choose a service area first to enable all customers receipt creation.';
+        paymentWrap.classList.add('d-none');
+        remainingWrap.classList.add('d-none');
+        setSummary('All customers', allTotals);
+        submitBtn.textContent = 'Create Receipts';
+        submitBtn.disabled = Number(allTotals.balance || 0) <= 0;
+        scopeNote.textContent = 'Creates receipts for every active customer with an outstanding balance.';
+        return;
       }
 
-      setSummary(totals, label);
+      if (mode === 'service_area') {
+        serviceAreaWrap.classList.remove('d-none');
+        customerWrap.classList.add('d-none');
+        paymentWrap.classList.add('d-none');
+        remainingWrap.classList.add('d-none');
+        const areaLabel = serviceAreaSelect.value ? (serviceAreaSelect.selectedOptions[0]?.textContent || '').trim() : 'Select service area';
+        setSummary(areaLabel, selectedAreaTotals);
+        submitBtn.textContent = 'Create Receipts';
+        submitBtn.disabled = !serviceAreaSelect.value || Number(selectedAreaTotals.balance || 0) <= 0;
+        scopeNote.textContent = serviceAreaSelect.value
+          ? 'Creates receipts for every active customer in the selected service area and skips invoices that are already paid.'
+          : 'Choose a service area to continue.';
+        return;
+      }
+
+      serviceAreaWrap.classList.add('d-none');
+      customerWrap.classList.remove('d-none');
+      paymentWrap.classList.remove('d-none');
+      remainingWrap.classList.remove('d-none');
+
+      if (customerTotals) {
+        const label = `${customerTotals.name}${customerTotals.code ? ` (${customerTotals.code})` : ''}`;
+        setSummary(label, customerTotals);
+        if (!paymentAmount.value || Number(paymentAmount.value) <= 0 || Number(paymentAmount.value) > Number(customerTotals.balance || 0)) {
+          paymentAmount.value = money(customerTotals.balance || 0);
+        }
+        updateRemaining(customerTotals);
+        submitBtn.textContent = 'Save Receipt';
+        submitBtn.disabled = Number(customerTotals.balance || 0) <= 0;
+        scopeNote.textContent = "This payment is applied to the customer's oldest unpaid invoices first.";
+      } else {
+        setSummary('Select customer', { balance: 0 });
+        paymentAmount.value = '';
+        remainingAfter.textContent = `${money(0)} ${defaultCurrency}`;
+        submitBtn.textContent = 'Save Receipt';
+        submitBtn.disabled = true;
+        scopeNote.textContent = 'Choose a customer to continue.';
+      }
     }
 
-    serviceAreaSelect.addEventListener('change', () => {
+    receiptMode.addEventListener('change', () => {
+      serviceAreaSelect.value = '';
       customerSelect.value = '';
+      paymentAmount.value = '';
       updateFormState();
     });
 
-    scopeSelect.addEventListener('change', () => {
-      customerSelect.value = '';
+    serviceAreaSelect.addEventListener('change', () => {
       updateFormState();
     });
 
@@ -372,8 +436,29 @@
     });
 
     paymentAmount?.addEventListener('input', () => {
-      const totals = selectedCustomerTotals() || areaTotals();
-      updatePaymentFields(totals);
+      if (receiptMode.value === 'one_customer') {
+        const totals = selectedCustomerTotals();
+        if (totals) {
+          updateRemaining(totals);
+        }
+      }
+    });
+
+    document.querySelectorAll('.js-edit-receipt').forEach((button) => {
+      button.addEventListener('click', () => {
+        if (!editForm || !editModal) {
+          return;
+        }
+        editForm.action = button.dataset.editAction || '';
+        editReceiptNo.textContent = button.dataset.receiptNo || '';
+        editReceiptCustomer.textContent = button.dataset.customerName || '';
+        editReceiptInvoice.textContent = button.dataset.invoiceNo || '';
+        editReceiptAmount.value = button.dataset.amountPaid || '';
+        editReceiptDate.value = button.dataset.paymentDate || '';
+        editReceiptMethod.value = button.dataset.paymentMethod || 'cash';
+        editReceiptRemarks.value = button.dataset.remarks || '';
+        editModal.show();
+      });
     });
 
     updateFormState();

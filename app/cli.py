@@ -48,3 +48,12 @@ def register_cli_commands(app):
         """Create or promote a user to staff."""
         action = _upsert_user(username, password, "Staff")
         click.echo(f"Staff user '{username}' {action} successfully.")
+
+    @app.cli.command("create-counter")
+    @click.option("--username", prompt=True, help="Counter username")
+    @click.option("--password", prompt=True, hide_input=True, confirmation_prompt=True, help="Counter password")
+    @with_appcontext
+    def create_counter(username, password):
+        """Create or promote a user to counter."""
+        action = _upsert_user(username, password, "Counter")
+        click.echo(f"Counter user '{username}' {action} successfully.")

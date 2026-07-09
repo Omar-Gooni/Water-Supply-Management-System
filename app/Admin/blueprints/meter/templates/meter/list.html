@@ -257,11 +257,6 @@
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Install Date</label>
-              <input name="install_date" type="date" class="form-control form-control-sm">
-            </div>
-
-            <div class="col-md-6">
               <label class="form-label">Status</label>
               <select name="status" class="form-select form-select-sm">
                 {% for s in ['Active','Faulty','Replaced','Removed'] %}
@@ -302,7 +297,6 @@
 
           if (btn.dataset.customer_id) form.querySelector('select[name="customer_id"]').value = btn.dataset.customer_id;
           form.meter_serial.value = btn.dataset.meter_serial || '';
-          form.install_date.value = btn.dataset.install_date || '';
           if (btn.dataset.status) form.querySelector('select[name="status"]').value = btn.dataset.status;
         } else {
           title.textContent = 'New Meter';

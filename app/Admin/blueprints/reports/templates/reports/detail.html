@@ -6,7 +6,7 @@
     <div class="panel-header">
       <div>
         <h2>Filters</h2>
-        <p>Choose a date range and any extra filters, then generate the report.</p>
+        <p>Choose a date range, then generate the report.</p>
       </div>
       <span class="panel-badge">{{ row_count }} rows</span>
     </div>
@@ -61,7 +61,17 @@
         {% endfor %}
       </div>
       {% endif %}
+      {% if report_metrics %}
+      <p class="report-filter-note mb-2">Totals</p>
+      <div class="report-filter-summary">
+        {% for item in report_metrics %}
+        <span class="report-summary-chip"><strong>{{ item.label }}:</strong> {{ item.value }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if result_range %}
       <p class="report-filter-note mb-0 mt-3">Showing {{ result_range }}.</p>
+      {% endif %}
     </div>
   </section>
 

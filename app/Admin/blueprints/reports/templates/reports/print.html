@@ -221,6 +221,15 @@
         </div>
         {% endif %}
 
+        {% if report_metrics %}
+        <p class="text-xs uppercase tracking-[0.2em] text-slate-500 mb-2">Totals</p>
+        <div class="summary-wrap">
+          {% for item in report_metrics %}
+          <span class="summary-chip"><strong>{{ item.label }}:</strong> {{ item.value }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+
         <div class="table-wrap">
           <table class="report-table">
             <thead>
@@ -272,7 +281,4 @@
   </script>
 </body>
 </html>
-
-
-
 

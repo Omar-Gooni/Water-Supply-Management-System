@@ -1,17 +1,205 @@
-﻿{% extends 'layouts/base.html' %}
+{% extends 'layouts/base.html' %}
 
-{% block title %}Staff Management{% endblock %}
+{% block title %}User Management{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3">
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+<style>
+  .user-shell {
+    --bg: #f6f8fc;
+    --surface: #ffffff;
+    --surface-soft: #f8fafc;
+    --line: #dbe3ef;
+    --ink: #0f172a;
+    --muted: #64748b;
+    --accent: #2fa8df;
+    --accent-dark: #2097cf;
+    --accent-soft: rgba(47, 168, 223, 0.12);
+    background: var(--bg);
+    padding: 0;
+  }
+
+  .page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: .7rem;
+  }
+
+  .page-title {
+    margin: 0;
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: var(--ink);
+    letter-spacing: -.03em;
+  }
+
+  .page-actions {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .new-btn {
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    color: #fff;
+    border-radius: 12px;
+    padding: .65rem .95rem;
+    font-weight: 700;
+  }
+
+  .new-btn:hover {
+    background: var(--accent-dark);
+    color: #fff;
+  }
+
+  .panel-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+    overflow: hidden;
+  }
+
+  .panel-header {
+    background: var(--surface-soft);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .filter-label {
+    font-size: .8rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: .25rem;
+  }
+
+  .form-control,
+  .form-select {
+    border-radius: 12px;
+    border-color: #cfd8e3;
+    box-shadow: none !important;
+  }
+
+  .toolbar-btn {
+    border-radius: 12px;
+  }
+
+  .filter-trigger {
+    background: linear-gradient(180deg, #36aee1 0%, #2fa8df 100%);
+    color: #fff;
+    border-radius: 14px;
+    padding: 1rem 1.15rem;
+    cursor: pointer;
+    border: 1px solid #2fa8df;
+    box-shadow: 0 10px 20px rgba(47, 168, 223, 0.22);
+  }
+
+  .filter-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    font-size: .8rem;
+    font-weight: 800;
+    padding: .18rem .5rem;
+    min-width: 1.8rem;
+  }
+
+  .page-size {
+    color: var(--muted);
+  }
+
+  #filter-chevron {
+    transition: transform .2s ease;
+    color: #fff;
+  }
+
+  .user-table {
+    margin-bottom: 0;
+  }
+
+  .user-table thead th {
+    background: #0f172a;
+    color: #fff;
+    font-size: .74rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    border: 0;
+    padding: .75rem .65rem;
+    white-space: nowrap;
+  }
+
+  .user-table tbody td {
+    vertical-align: middle;
+    border-color: rgba(148, 163, 184, 0.18);
+    padding: .75rem .65rem;
+  }
+
+  .user-table tbody tr:hover {
+    background: #f8fbff;
+  }
+
+  .user-name {
+    font-weight: 800;
+    color: var(--ink);
+  }
+
+  .muted {
+    color: var(--muted);
+    font-size: .8rem;
+  }
+
+  .role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .34rem .65rem;
+    border-radius: 999px;
+    font-size: .74rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  .role-admin { background: rgba(14, 165, 233, 0.12); color: #0369a1; }
+  .role-staff { background: rgba(34, 197, 94, 0.12); color: #166534; }
+  .role-counter { background: rgba(245, 158, 11, 0.14); color: #9a5800; }
+
+  .soft-btn {
+    border: 1px solid #cfd8e3;
+    background: #fff;
+    color: var(--ink);
+    border-radius: 12px;
+  }
+
+  .soft-btn:hover {
+    background: #f8fafc;
+    color: var(--ink);
+  }
+
+  .empty-state {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--muted);
+  }
+</style>
+
+<div class="container-fluid py-3 user-shell">
+  <div class="page-header">
     <div>
-      <h4 class="mb-1">Staff Users</h4>
-      <div class="text-muted">Create and manage professional staff accounts</div>
+      <h1 class="page-title">Users</h1>
     </div>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#staffModal" data-mode="create">
-      <i class="fa fa-plus me-1"></i> New Staff
-    </button>
+    <div class="page-actions">
+      <button class="btn new-btn" data-bs-toggle="modal" data-bs-target="#userModal" data-mode="create">
+        <i class="fa fa-plus me-1"></i> New User
+      </button>
+    </div>
   </div>
 
   {% with messages=get_flashed_messages(with_categories=true) %}
@@ -25,151 +213,184 @@
     {% endif %}
   {% endwith %}
 
-  {% set active_count = (1 if request.args.get('service_area_id') else 0) + (1 if request.args.get('q') else 0) %}
-  <div class="filter-bar mb-3">
-    <div class="filter-header d-flex justify-content-between align-items-center"
+  <div class="panel-card mb-3">
+    <div class="filter-trigger d-flex justify-content-between align-items-center"
          data-bs-toggle="collapse"
          data-bs-target="#filtersCollapse"
          aria-expanded="{{ 'true' if active_count > 0 else 'false' }}"
-         aria-controls="filtersCollapse"
-         style="cursor:pointer">
-      <div class="d-flex align-items-center gap-2 text-white">
-        <i class="fa fa-filter"></i>
+         aria-controls="filtersCollapse">
+      <div class="d-flex align-items-center gap-2">
+        <i class="fa-solid fa-filter"></i>
         <strong>Filter Options</strong>
       </div>
-      <div class="d-flex align-items-center gap-2 text-white">
-        <span><span id="filter-active-count">{{ active_count }}</span> active</span>
-        <i class="fa fa-chevron-down" id="filter-chevron"></i>
+      <div class="d-flex align-items-center gap-2">
+        <span class="filter-count">{{ active_count }}</span>
+        <span class="small">active</span>
+        <i class="fa-solid fa-chevron-down" id="filter-chevron"></i>
       </div>
     </div>
 
     <div id="filtersCollapse" class="collapse {% if active_count > 0 %}show{% endif %}">
-      <form id="filtersForm" method="GET" action="{{ url_for('staff_account.list_staff') }}" class="row g-2 p-3 align-items-end">
-        <div class="col-lg-3 col-sm-6">
-          <label class="form-label mb-1">Service Area</label>
-          <select name="service_area_id" class="form-select form-select-sm">
-            <option value="">All</option>
-            {% for area in service_areas %}
-              <option value="{{ area.id }}" {{ 'selected' if request.args.get('service_area_id')|int == area.id else '' }}>
-                {{ area.area_name }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
+      <div class="p-3 p-lg-4">
+        <form id="filtersForm" method="GET" action="{{ url_for('staff_account.list_staff') }}" class="row g-3 align-items-end">
+          <div class="col-lg-4 col-sm-6">
+            <label class="filter-label">Search</label>
+            <input id="qInput" type="text" name="q" class="form-control" placeholder="Full name / Username / Job title / Phone" value="{{ request.args.get('q','') }}">
+          </div>
 
-        <div class="col-lg-6 col-sm-8">
-          <label class="form-label mb-1">Search</label>
-          <input id="qInput" type="text" name="q" class="form-control form-control-sm"
-                 placeholder="Full name / Username / Job title / Phone"
-                 value="{{ request.args.get('q','') }}">
-        </div>
+          <div class="col-lg-3 col-sm-6">
+            <label class="filter-label">Role</label>
+            <select name="role" class="form-select">
+              <option value="">All roles</option>
+              {% for role in user_roles %}
+                <option value="{{ role }}" {{ 'selected' if request.args.get('role') == role else '' }}>{{ role }}</option>
+              {% endfor %}
+            </select>
+          </div>
 
-        <div class="col-lg-3 col-sm-4 text-end">
-          <a href="{{ url_for('staff_account.list_staff') }}" class="btn btn-secondary btn-sm w-100">
-            <i class="fa fa-rotate-right me-1"></i> Reset
-          </a>
-        </div>
-      </form>
+          <div class="col-lg-3 col-sm-6">
+            <label class="filter-label">Service Area</label>
+            <select name="service_area_id" class="form-select">
+              <option value="">All</option>
+              {% for area in service_areas %}
+                <option value="{{ area.id }}" {{ 'selected' if request.args.get('service_area_id')|int == area.id else '' }}>{{ area.area_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-lg-2 col-sm-6 d-flex justify-content-end gap-2">
+            <a href="{{ url_for('staff_account.list_staff') }}" class="btn soft-btn w-100"><i class="fa fa-rotate-right me-1"></i> Reset</a>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 
-  <div class="mb-2 page-size">
-    <form method="get" class="d-inline">
-      {% for k, v in request.args.items() if k not in ['per_page','page'] %}
-        <input type="hidden" name="{{ k }}" value="{{ v }}">
-      {% endfor %}
-      <select name="per_page" class="form-select form-select-sm w-auto d-inline-block" onchange="this.form.submit()" aria-label="Rows per page">
-        {% for n in allowed_per_page %}
-          <option value="{{ n }}" {{ 'selected' if per_page == n else '' }}>{{ n }}</option>
-        {% endfor %}
-      </select>
-    </form>
-  </div>
+  {% set qs = namespace(pairs=[]) %}
+  {% for k, v in request.args.items() %}
+    {% set _ = qs.pairs.append(k ~ '=' ~ (v|urlencode)) %}
+  {% endfor %}
+  {% set preserved = qs.pairs|join('&') %}
 
-  <div class="table-responsive">
-    <table class="table table-striped table-hover align-middle table-sm">
-      <thead class="table-light">
-        <tr>
-          <th>#</th>
-          <th>Full Name</th>
-          <th>Username</th>
-          <th>Job Title</th>
-          <th>Service Area</th>
-          <th>Phone</th>
-          <th>Role</th>
-          <th class="text-end">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for user in staff_users %}
+  <div class="panel-card">
+    <div class="panel-header px-3 px-lg-4 py-3 d-flex justify-content-end align-items-center gap-2">
+      <div class="d-flex align-items-center gap-2 page-size">
+        <span class="small">Rows per page</span>
+        <form method="get" class="d-inline">
+          {% for k, v in request.args.items() if k not in ['per_page', 'page'] %}
+            <input type="hidden" name="{{ k }}" value="{{ v }}">
+          {% endfor %}
+          <select name="per_page" class="form-select form-select-sm" style="min-width: 90px" onchange="this.form.submit()" aria-label="Rows per page">
+            {% for n in allowed_per_page %}
+              <option value="{{ n }}" {{ 'selected' if per_page == n else '' }}>{{ n }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table user-table align-middle mb-0">
+        <thead>
           <tr>
-            <td>{{ user.id }}</td>
-            <td>{{ user.full_name or '-' }}</td>
-            <td>{{ user.username }}</td>
-            <td>{{ user.job_title or '-' }}</td>
-            <td>{{ user.service_area.area_name if user.service_area else '-' }}</td>
-            <td>{{ user.phone or '-' }}</td>
-            <td>{{ user.role }}</td>
-            <td class="text-end text-nowrap">
-              <button class="btn btn-edit"
-                      data-bs-toggle="modal" data-bs-target="#staffModal"
-                      data-mode="edit"
-                      data-id="{{ user.id }}"
-                      data-full-name="{{ user.full_name or '' }}"
-                      data-username="{{ user.username }}"
-                      data-job-title="{{ user.job_title or '' }}"
-                      data-service-area-id="{{ user.service_area_id or '' }}"
-                      data-phone="{{ user.phone or '' }}">
-                Edit
-              </button>
-              <form method="POST" action="{{ url_for('staff_account.delete_staff', user_id=user.id) }}" class="d-inline delete-form">
-                <button type="button" class="btn btn-delete btn-confirm-delete">Delete</button>
-              </form>
-            </td>
+            <th>#</th>
+            <th>Full Name</th>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Job Title</th>
+            <th>Service Area</th>
+            <th>Phone</th>
+            <th>Created</th>
+            <th class="text-end">Actions</th>
           </tr>
-        {% else %}
-          <tr>
-            <td colspan="8" class="text-center text-muted">No staff users found</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for user in users %}
+            <tr>
+              <td class="text-muted">{{ user.id }}</td>
+              <td>
+                <div class="user-name">{{ user.full_name or '-' }}</div>
+              </td>
+              <td>{{ user.username }}</td>
+              <td>
+                {% set role_key = (user.role or 'Counter')|lower %}
+                <span class="role-badge role-{{ role_key }}">{{ user.role or 'Counter' }}</span>
+              </td>
+              <td>{{ user.job_title or '-' }}</td>
+              <td>{{ user.service_area.area_name if user.service_area else '-' }}</td>
+              <td>{{ user.phone or '-' }}</td>
+              <td>{{ user.created_date or '' }}</td>
+              <td class="text-end text-nowrap">
+                <button class="btn btn-outline-secondary btn-sm toolbar-btn"
+                        data-bs-toggle="modal" data-bs-target="#userModal"
+                        data-mode="edit"
+                        data-id="{{ user.id }}"
+                        data-full-name="{{ user.full_name or '' }}"
+                        data-username="{{ user.username }}"
+                        data-role="{{ user.role or 'Counter' }}"
+                        data-job-title="{{ user.job_title or '' }}"
+                        data-service-area-id="{{ user.service_area_id or '' }}"
+                        data-phone="{{ user.phone or '' }}">
+                  Edit
+                </button>
+                <form method="POST" action="{{ url_for('staff_account.delete_staff', user_id=user.id) }}" class="d-inline delete-form">
+                  <button type="button" class="btn btn-outline-danger btn-sm toolbar-btn btn-confirm-delete">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="9">
+                <div class="empty-state">
+                  <div class="mb-2"><i class="fa-solid fa-users-gear fa-2x text-secondary"></i></div>
+                  <div class="fw-semibold text-dark">No users found</div>
+                  <div>Try changing the filters or reset the page to see all accounts.</div>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 
   {% if pagination.pages > 1 %}
-  <nav aria-label="Pagination" class="mt-2">
-    <ul class="pagination pagination-sm justify-content-end mb-0">
-      {% set keep = namespace(pairs=[]) %}
-      {% for k, v in request.args.items() if k not in ['page', 'per_page'] %}
-        {% set _ = keep.pairs.append(k ~ '=' ~ (v|urlencode)) %}
-      {% endfor %}
-      {% set keep_qs = keep.pairs|join('&') %}
-      {% set first_href = url_for('staff_account.list_staff') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=1&per_page=' ~ per_page %}
-      {% set prev_href  = url_for('staff_account.list_staff') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ (pagination.prev_num or 1) ~ '&per_page=' ~ per_page %}
-      {% set next_href  = url_for('staff_account.list_staff') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ (pagination.next_num or pagination.pages) ~ '&per_page=' ~ per_page %}
-      {% set last_href  = url_for('staff_account.list_staff') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ pagination.pages ~ '&per_page=' ~ per_page %}
-      <li class="page-item {{ 'disabled' if not pagination.has_prev }}"><a class="page-link" href="{{ first_href }}">First</a></li>
-      <li class="page-item {{ 'disabled' if not pagination.has_prev }}"><a class="page-link" href="{{ prev_href }}">&laquo;</a></li>
-      {% set start = max(1, pagination.page - 2) %}
-      {% set end = min(pagination.pages, pagination.page + 2) %}
-      {% for p in range(start, end + 1) %}
-        <li class="page-item {{ 'active' if p == pagination.page }}"><a class="page-link" href="{{ url_for('staff_account.list_staff', q=request.args.get('q'), service_area_id=request.args.get('service_area_id'), per_page=per_page, page=p) }}">{{ p }}</a></li>
-      {% endfor %}
-      <li class="page-item {{ 'disabled' if not pagination.has_next }}"><a class="page-link" href="{{ next_href }}">&raquo;</a></li>
-      <li class="page-item {{ 'disabled' if not pagination.has_next }}"><a class="page-link" href="{{ last_href }}">Last</a></li>
-    </ul>
-  </nav>
+    <nav aria-label="Pagination" class="mt-3">
+      <ul class="pagination justify-content-end mb-0">
+        {% set keep = namespace(pairs=[]) %}
+        {% for k, v in request.args.items() if k not in ['page', 'per_page'] %}
+          {% set _ = keep.pairs.append(k ~ '=' ~ (v|urlencode)) %}
+        {% endfor %}
+        {% set keep_qs = keep.pairs|join('&') %}
+        {% set first_href = url_for('staff_account.list_staff') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=1&per_page=' ~ per_page %}
+        {% set prev_href  = url_for('staff_account.list_staff') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ (pagination.prev_num or 1) ~ '&per_page=' ~ per_page %}
+        {% set next_href  = url_for('staff_account.list_staff') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ (pagination.next_num or pagination.pages) ~ '&per_page=' ~ per_page %}
+        {% set last_href  = url_for('staff_account.list_staff') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ pagination.pages ~ '&per_page=' ~ per_page %}
+
+        <li class="page-item {{ 'disabled' if not pagination.has_prev }}"><a class="page-link" href="{{ first_href }}">First</a></li>
+        <li class="page-item {{ 'disabled' if not pagination.has_prev }}"><a class="page-link" href="{{ prev_href }}">&laquo;</a></li>
+        {% set start = pagination.page - 2 if pagination.page > 2 else 1 %}
+        {% set end = pagination.page + 2 if pagination.page + 2 < pagination.pages else pagination.pages %}
+        {% for p in range(start, end + 1) %}
+          {% set p_href = url_for('staff_account.list_staff') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ p ~ '&per_page=' ~ per_page %}
+          <li class="page-item {{ 'active' if p == pagination.page else '' }}"><a class="page-link" href="{{ p_href }}">{{ p }}</a></li>
+        {% endfor %}
+        <li class="page-item {{ 'disabled' if not pagination.has_next }}"><a class="page-link" href="{{ next_href }}">&raquo;</a></li>
+        <li class="page-item {{ 'disabled' if not pagination.has_next }}"><a class="page-link" href="{{ last_href }}">Last</a></li>
+      </ul>
+    </nav>
   {% endif %}
 </div>
 
-<div class="modal fade" id="staffModal" tabindex="-1" aria-labelledby="staffModalLabel" aria-hidden="true">
+<div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <form id="staffForm" method="POST" action="{{ url_for('staff_account.create_staff') }}">
+      <form id="userForm" method="POST" action="{{ url_for('staff_account.create_staff') }}">
         <div class="modal-header">
-          <h5 class="modal-title" id="staffModalLabel">New Staff</h5>
+          <h5 class="modal-title" id="userModalLabel">New User</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
+
         <div class="modal-body">
           <div class="row g-2">
             <div class="col-md-6">
@@ -189,13 +410,22 @@
               <input name="confirm_password" type="password" class="form-control form-control-sm" required>
             </div>
             <div class="col-md-6">
+              <label class="form-label">Role</label>
+              <select name="role" class="form-select form-select-sm" required>
+                <option value="">Choose role</option>
+                {% for role in user_roles %}
+                  <option value="{{ role }}">{{ role }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
               <label class="form-label">Job Title</label>
-              <input name="job_title" class="form-control form-control-sm" placeholder="e.g. Meter Reader" required>
+              <input name="job_title" class="form-control form-control-sm" placeholder="Optional for Admin / Counter">
             </div>
             <div class="col-md-6">
               <label class="form-label">Service Area</label>
-              <select name="service_area_id" class="form-select form-select-sm" required>
-                <option value="">Choose service area</option>
+              <select name="service_area_id" class="form-select form-select-sm">
+                <option value="">Optional</option>
                 {% for area in service_areas %}
                   <option value="{{ area.id }}">{{ area.area_name }}</option>
                 {% endfor %}
@@ -203,14 +433,12 @@
             </div>
             <div class="col-12">
               <label class="form-label">Phone</label>
-              <input name="phone" class="form-control form-control-sm" placeholder="e.g. 07xxxxxxxx" required>
-            </div>
-            <div class="col-12">
-              <label class="form-label">Role</label>
-              <input class="form-control form-control-sm" value="Staff" readonly>
+              <input name="phone" class="form-control form-control-sm" placeholder="Optional for Admin / Counter">
             </div>
           </div>
+          <div class="form-text mt-2">Staff users should have a job title, phone, and service area.</div>
         </div>
+
         <div class="modal-footer">
           <button class="btn btn-primary btn-sm" type="submit">Save</button>
           <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
@@ -226,27 +454,41 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      const modalEl = document.getElementById('staffModal');
+      const modalEl = document.getElementById('userModal');
+      const form = document.getElementById('userForm');
+      const title = document.getElementById('userModalLabel');
+      const roleSelect = form.querySelector('[name="role"]');
+      const serviceArea = form.querySelector('[name="service_area_id"]');
+      const jobTitle = form.querySelector('[name="job_title"]');
+      const phone = form.querySelector('[name="phone"]');
+      const password = form.querySelector('[name="password"]');
+      const confirmPassword = form.querySelector('[name="confirm_password"]');
+
+      function syncRoleRequirements() {
+        const isStaff = roleSelect.value === 'Staff';
+        serviceArea.required = isStaff;
+        jobTitle.required = isStaff;
+        phone.required = isStaff;
+      }
+
       modalEl.addEventListener('show.bs.modal', (event) => {
         const btn = event.relatedTarget;
-        const form = document.getElementById('staffForm');
-        const title = document.getElementById('staffModalLabel');
         form.reset();
-
-        const password = form.querySelector('[name="password"]');
-        const confirmPassword = form.querySelector('[name="confirm_password"]');
-        const fullName = form.querySelector('[name="full_name"]');
-        const username = form.querySelector('[name="username"]');
-        const jobTitle = form.querySelector('[name="job_title"]');
-        const serviceArea = form.querySelector('[name="service_area_id"]');
-        const phone = form.querySelector('[name="phone"]');
+        form.action = "{{ url_for('staff_account.create_staff') }}";
+        title.textContent = 'New User';
+        password.required = true;
+        confirmPassword.required = true;
+        password.placeholder = '';
+        confirmPassword.placeholder = '';
+        roleSelect.value = '';
+        syncRoleRequirements();
 
         if (btn?.dataset.mode === 'edit') {
-          title.textContent = 'Edit Staff';
-          const id = btn.dataset.id;
-          form.action = "{{ url_for('staff_account.edit_staff', user_id=0) }}".replace('0', id);
-          fullName.value = btn.dataset.fullName || '';
-          username.value = btn.dataset.username || '';
+          title.textContent = 'Edit User';
+          form.action = "{{ url_for('staff_account.edit_staff', user_id=0) }}".replace('0', btn.dataset.id);
+          form.querySelector('[name="full_name"]').value = btn.dataset.fullName || '';
+          form.querySelector('[name="username"]').value = btn.dataset.username || '';
+          roleSelect.value = btn.dataset.role || '';
           jobTitle.value = btn.dataset.jobTitle || '';
           phone.value = btn.dataset.phone || '';
           serviceArea.value = btn.dataset.serviceAreaId || '';
@@ -254,30 +496,26 @@
           confirmPassword.required = false;
           password.placeholder = 'Leave blank to keep current password';
           confirmPassword.placeholder = 'Leave blank to keep current password';
-        } else {
-          title.textContent = 'New Staff';
-          form.action = "{{ url_for('staff_account.create_staff') }}";
-          password.required = true;
-          confirmPassword.required = true;
-          password.placeholder = '';
-          confirmPassword.placeholder = '';
+          syncRoleRequirements();
         }
       });
+
+      roleSelect.addEventListener('change', syncRoleRequirements);
 
       document.querySelectorAll('.btn-confirm-delete').forEach(btn => {
         btn.addEventListener('click', () => {
           const form = btn.closest('.delete-form');
           Swal.fire({
-            title: 'Are you sure?',
-            text: 'This action cannot be undone!',
+            title: 'Delete user?',
+            text: 'This account will be removed permanently.',
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#2eaadf',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes, delete it!',
+            confirmButtonColor: '#b91c1c',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Yes, delete',
             cancelButtonText: 'Cancel'
           }).then((result) => {
-            if (result.isConfirmed) form.submit();
+            if (result.isConfirmed && form) form.submit();
           });
         });
       });
@@ -286,29 +524,47 @@
       const qInput = document.getElementById('qInput');
       const chevron = document.getElementById('filter-chevron');
       const collapseEl = document.getElementById('filtersCollapse');
-      const countEl = document.getElementById('filter-active-count');
+      const countEl = document.querySelector('.filter-count');
 
-      function debounce(fn, ms) { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), ms); }; }
+      function debounce(fn, ms) {
+        let t;
+        return (...args) => {
+          clearTimeout(t);
+          t = setTimeout(() => fn.apply(this, args), ms);
+        };
+      }
+
       function activeCount() {
         const fd = new FormData(filtersForm);
         let c = 0;
-        if ((fd.get('service_area_id') || '').trim()) c++;
         if ((fd.get('q') || '').trim()) c++;
+        if ((fd.get('role') || '').trim()) c++;
+        if ((fd.get('service_area_id') || '').trim()) c++;
         return c;
       }
-      function updateCount() { countEl.textContent = activeCount(); }
 
-      filtersForm.querySelectorAll('select').forEach(s => {
-        s.addEventListener('change', () => {
+      function updateCount() {
+        if (countEl) countEl.textContent = activeCount();
+      }
+
+      filtersForm.querySelectorAll('select').forEach(sel => {
+        sel.addEventListener('change', () => {
           updateCount();
           filtersForm.submit();
         });
       });
 
-      const submitQ = debounce(() => { updateCount(); filtersForm.submit(); }, 450);
-      qInput.addEventListener('input', submitQ);
+      qInput.addEventListener('input', debounce(() => {
+        updateCount();
+        filtersForm.submit();
+      }, 450));
+
       qInput.addEventListener('keypress', e => {
-        if (e.key === 'Enter') { e.preventDefault(); updateCount(); filtersForm.submit(); }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          updateCount();
+          filtersForm.submit();
+        }
       });
 
       collapseEl.addEventListener('shown.bs.collapse', () => { chevron.style.transform = 'rotate(180deg)'; });

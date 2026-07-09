@@ -1,17 +1,30 @@
-﻿from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from sqlalchemy import or_
 
 from app.extensions import db
-from app.Auth.blueprints.auth.views import login_required, role_required
+from app.Auth.blueprints.auth.views import login_required, role_required, _dashboard_for_role
 from app.Auth.blueprints.auth.models import User
 from app.Admin.blueprints.service_area.models import ServiceArea
 
 staff_account_bp = Blueprint("staff_account", __name__, template_folder="templates")
 
+USER_ROLES = ("Admin", "Staff", "Counter")
+
+
+def _clean_role(value):
+    role = (value or "").strip().title()
+    return role if role in USER_ROLES else "Counter"
+
+
+def _needs_service_area(role):
+    return role == "Staff"
+
 
 def _apply_filters(q):
     q_text = (request.args.get("q") or "").strip()
     service_area_id = request.args.get("service_area_id", type=int)
+    role_raw = (request.args.get("role") or "").strip()
+    role = role_raw.title() if role_raw.title() in USER_ROLES else ""
 
     if q_text:
         like = f"%{q_text}%"
@@ -24,24 +37,40 @@ def _apply_filters(q):
             )
         )
 
+    if role in USER_ROLES:
+        q = q.filter(User.role == role)
     if service_area_id:
         q = q.filter(User.service_area_id == service_area_id)
 
-    return q.filter(User.role == "Staff")
+    return q
 
 
-def _get_form_values():
+def _form_values():
     return {
         "full_name": (request.form.get("full_name") or "").strip(),
         "username": (request.form.get("username") or "").strip(),
         "job_title": (request.form.get("job_title") or "").strip(),
         "phone": (request.form.get("phone") or "").strip(),
         "service_area_id": request.form.get("service_area_id", type=int),
+        "role": _clean_role(request.form.get("role")),
         "password": request.form.get("password") or "",
         "confirm_password": request.form.get("confirm_password") or "",
     }
 
 
+def _redirect_list():
+    return redirect(url_for("staff_account.list_staff", **request.args))
+
+
+def _user_form_context():
+    service_areas = ServiceArea.query.order_by(ServiceArea.area_name.asc()).all()
+    active_count = int(bool((request.args.get("q") or "").strip()))
+    active_count += int(bool(request.args.get("role")))
+    active_count += int(bool(request.args.get("service_area_id")))
+    return service_areas, active_count
+
+
+@staff_account_bp.route("/admin/users")
 @staff_account_bp.route("/admin/staff")
 @login_required
 @role_required("Admin")
@@ -54,101 +83,140 @@ def list_staff():
 
     query = _apply_filters(User.query).order_by(User.id.desc())
     pagination = db.paginate(query, page=page, per_page=per_page, error_out=False, max_per_page=100)
-    service_areas = ServiceArea.query.order_by(ServiceArea.area_name.asc()).all()
+    service_areas, active_count = _user_form_context()
 
     return render_template(
         "staff_account/list.html",
+        users=pagination.items,
         staff_users=pagination.items,
         pagination=pagination,
         per_page=per_page,
         allowed_per_page=sorted(allowed_per_page),
         service_areas=service_areas,
+        user_roles=USER_ROLES,
+        active_count=active_count,
     )
 
 
+@staff_account_bp.route("/admin/users/new", methods=["POST"])
 @staff_account_bp.route("/admin/staff/new", methods=["POST"])
 @login_required
 @role_required("Admin")
 def create_staff():
-    form = _get_form_values()
+    form = _form_values()
 
-    if not form["full_name"] or not form["username"] or not form["job_title"] or not form["phone"] or not form["service_area_id"] or not form["password"]:
-        flash("Full name, username, job title, service area, phone, and password are required.", "danger")
-        return redirect(url_for("staff_account.list_staff", **request.args))
+    if not form["full_name"] or not form["username"] or not form["password"]:
+        flash("Full name, username and password are required.", "danger")
+        return _redirect_list()
     if form["password"] != form["confirm_password"]:
         flash("Passwords do not match.", "danger")
-        return redirect(url_for("staff_account.list_staff", **request.args))
+        return _redirect_list()
 
-    service_area = ServiceArea.query.get(form["service_area_id"])
-    if service_area is None:
-        flash("Please choose a valid service area.", "danger")
-        return redirect(url_for("staff_account.list_staff", **request.args))
+    if form["role"] == "Staff" and (not form["job_title"] or not form["phone"] or not form["service_area_id"]):
+        flash("Staff users require job title, phone and service area.", "danger")
+        return _redirect_list()
 
-    existing = User.query.filter_by(username=form["username"]).first()
-    if existing:
+    if form["service_area_id"]:
+        service_area = ServiceArea.query.get(form["service_area_id"])
+        if service_area is None:
+            flash("Please choose a valid service area.", "danger")
+            return _redirect_list()
+
+    if User.query.filter_by(username=form["username"]).first():
         flash("Username already exists.", "danger")
-        return redirect(url_for("staff_account.list_staff", **request.args))
+        return _redirect_list()
 
     user = User(
         full_name=form["full_name"],
         username=form["username"],
-        job_title=form["job_title"],
-        phone=form["phone"],
-        service_area_id=form["service_area_id"],
-        role="Staff",
+        job_title=form["job_title"] or None,
+        phone=form["phone"] or None,
+        service_area_id=form["service_area_id"] if form["role"] == "Staff" else (form["service_area_id"] or None),
+        role=form["role"],
     )
     user.set_password(form["password"])
     db.session.add(user)
     db.session.commit()
 
-    flash("Staff user created.", "success")
-    return redirect(url_for("staff_account.list_staff", **request.args))
+    flash(f"{user.role} user created.", "success")
+    return _redirect_list()
 
 
+@staff_account_bp.route("/admin/users/<int:user_id>/edit", methods=["POST"])
 @staff_account_bp.route("/admin/staff/<int:user_id>/edit", methods=["POST"])
 @login_required
 @role_required("Admin")
 def edit_staff(user_id):
-    user = User.query.filter_by(id=user_id, role="Staff").first_or_404()
-    form = _get_form_values()
+    user = User.query.get_or_404(user_id)
+    form = _form_values()
 
-    if not form["full_name"] or not form["username"] or not form["job_title"] or not form["phone"] or not form["service_area_id"]:
-        flash("Full name, username, job title, service area, and phone are required.", "danger")
-        return redirect(url_for("staff_account.list_staff", **request.args))
+    if not form["full_name"] or not form["username"]:
+        flash("Full name and username are required.", "danger")
+        return _redirect_list()
     if form["password"] and form["password"] != form["confirm_password"]:
         flash("Passwords do not match.", "danger")
-        return redirect(url_for("staff_account.list_staff", **request.args))
+        return _redirect_list()
 
-    service_area = ServiceArea.query.get(form["service_area_id"])
-    if service_area is None:
-        flash("Please choose a valid service area.", "danger")
-        return redirect(url_for("staff_account.list_staff", **request.args))
+    if form["role"] == "Staff" and (not form["job_title"] or not form["phone"] or not form["service_area_id"]):
+        flash("Staff users require job title, phone and service area.", "danger")
+        return _redirect_list()
+
+    if form["service_area_id"]:
+        service_area = ServiceArea.query.get(form["service_area_id"])
+        if service_area is None:
+            flash("Please choose a valid service area.", "danger")
+            return _redirect_list()
 
     duplicate = User.query.filter(User.username == form["username"], User.id != user.id).first()
     if duplicate:
         flash("Username already exists.", "danger")
-        return redirect(url_for("staff_account.list_staff", **request.args))
+        return _redirect_list()
+
+    if user.role == "Admin" and form["role"] != "Admin":
+        admin_count = User.query.filter(User.role == "Admin").count()
+        if admin_count <= 1:
+            flash("You cannot change the last admin account to another role.", "danger")
+            return _redirect_list()
 
     user.full_name = form["full_name"]
     user.username = form["username"]
-    user.job_title = form["job_title"]
-    user.phone = form["phone"]
-    user.service_area_id = form["service_area_id"]
+    user.job_title = form["job_title"] or None
+    user.phone = form["phone"] or None
+    user.role = form["role"]
+    user.service_area_id = form["service_area_id"] if form["role"] == "Staff" else (form["service_area_id"] or None)
     if form["password"]:
         user.set_password(form["password"])
 
     db.session.commit()
 
-    flash("Staff user updated.", "success")
-    return redirect(url_for("staff_account.list_staff", **request.args))
+    if user.id == session.get("user_id"):
+        session["username"] = user.username
+        session["role"] = user.role
+        flash("Your account was updated.", "success")
+        return _dashboard_for_role(user.role)
+
+    flash("User updated.", "success")
+    return _redirect_list()
 
 
+@staff_account_bp.route("/admin/users/<int:user_id>/delete", methods=["POST"])
 @staff_account_bp.route("/admin/staff/<int:user_id>/delete", methods=["POST"])
 @login_required
 @role_required("Admin")
 def delete_staff(user_id):
-    user = User.query.filter_by(id=user_id, role="Staff").first_or_404()
+    user = User.query.get_or_404(user_id)
+
+    if user.id == session.get("user_id"):
+        flash("You cannot delete your own account.", "danger")
+        return _redirect_list()
+
+    if user.role == "Admin":
+        admin_count = User.query.filter(User.role == "Admin").count()
+        if admin_count <= 1:
+            flash("You cannot delete the last admin account.", "danger")
+            return _redirect_list()
+
     db.session.delete(user)
     db.session.commit()
-    flash("Staff user deleted.", "info")
-    return redirect(url_for("staff_account.list_staff", **request.args))
+    flash("User deleted.", "info")
+    return _redirect_list()
