@@ -10,7 +10,6 @@ class User(db.Model):
     full_name = db.Column(db.String(120), nullable=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    job_title = db.Column(db.String(120), nullable=True)
     phone = db.Column(db.String(32), nullable=True)
     created_date = db.Column(db.Date, nullable=False, default=date.today)
     service_area_id = db.Column(

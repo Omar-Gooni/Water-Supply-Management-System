@@ -1,4 +1,4 @@
-{% extends 'layouts/base.html' %}
+﻿{% extends 'layouts/base.html' %}
 
 {% block title %}Pipelines{% endblock %}
 
@@ -13,33 +13,30 @@
 
   {# Flash messages #}
   {% with messages=get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, message in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-          {{ message }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-      {% endfor %}
-    {% endif %}
+  {% if messages %}
+  {% for category, message in messages %}
+  <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+  {% endif %}
   {% endwith %}
 
   {# ---------- Collapsible Filter Bar ---------- #}
   {% set active_count =
-      (1 if request.args.get('tank_id') else 0)
-    + (1 if request.args.get('service_area_id') else 0)
-    + (1 if request.args.get('status') else 0)
-    + (1 if request.args.get('line_name') else 0)
-    + (1 if request.args.get('date_from') else 0)
-    + (1 if request.args.get('date_to') else 0)
+  (1 if request.args.get('tank_id') else 0)
+  + (1 if request.args.get('service_area_id') else 0)
+  + (1 if request.args.get('status') else 0)
+  + (1 if request.args.get('line_name') else 0)
+  + (1 if request.args.get('date_from') else 0)
+  + (1 if request.args.get('date_to') else 0)
   %}
 
   <div class="filter-bar mb-3">
-    <div class="filter-header d-flex justify-content-between align-items-center"
-         data-bs-toggle="collapse"
-         data-bs-target="#filtersCollapse"
-         aria-expanded="{{ 'true' if active_count > 0 else 'false' }}"
-         aria-controls="filtersCollapse"
-         style="cursor:pointer">
+    <div class="filter-header d-flex justify-content-between align-items-center" data-bs-toggle="collapse"
+      data-bs-target="#filtersCollapse" aria-expanded="{{ 'true' if active_count > 0 else 'false' }}"
+      aria-controls="filtersCollapse" style="cursor:pointer">
       <div class="d-flex align-items-center gap-2 text-white">
         <i class="fa fa-filter"></i>
         <strong>Filter Options</strong>
@@ -51,15 +48,16 @@
     </div>
 
     <div id="filtersCollapse" class="collapse {% if active_count > 0 %}show{% endif %}">
-      <form id="filtersForm" method="GET" action="{{ url_for('pipeline.list_pipelines') }}" class="row g-2 p-3 align-items-end">
+      <form id="filtersForm" method="GET" action="{{ url_for('pipeline.list_pipelines') }}"
+        class="row g-2 p-3 align-items-end">
         <div class="col-lg-3 col-sm-6">
           <label class="form-label mb-1">Tank</label>
           <select name="tank_id" class="form-select form-select-sm">
             <option value="">All</option>
             {% for t in active_tanks %}
-              <option value="{{ t.id }}" {{ 'selected' if request.args.get('tank_id')|int == t.id else '' }}>
-                {{ t.tank_name }}
-              </option>
+            <option value="{{ t.id }}" {{ 'selected' if request.args.get('tank_id')|int==t.id else '' }}>
+              {{ t.tank_name }}
+            </option>
             {% endfor %}
           </select>
         </div>
@@ -69,9 +67,9 @@
           <select name="service_area_id" class="form-select form-select-sm">
             <option value="">All</option>
             {% for a in service_areas %}
-              <option value="{{ a.id }}" {{ 'selected' if request.args.get('service_area_id')|int == a.id else '' }}>
-                {{ a.area_name }} ({{ a.area_code }})
-              </option>
+            <option value="{{ a.id }}" {{ 'selected' if request.args.get('service_area_id')|int==a.id else '' }}>
+              {{ a.area_name }} ({{ a.area_code }})
+            </option>
             {% endfor %}
           </select>
         </div>
@@ -81,27 +79,27 @@
           <select name="status" class="form-select form-select-sm">
             <option value="">All</option>
             {% for s in status_options %}
-              <option value="{{ s }}" {{ 'selected' if request.args.get('status') == s else '' }}>{{ s }}</option>
+            <option value="{{ s }}" {{ 'selected' if request.args.get('status')==s else '' }}>{{ s }}</option>
             {% endfor %}
           </select>
         </div>
 
         <div class="col-lg-2 col-sm-6">
           <label class="form-label mb-1">Line name</label>
-          <input type="text" name="line_name" class="form-control form-control-sm"
-                 placeholder="Search by name" value="{{ request.args.get('line_name','') }}">
+          <input type="text" name="line_name" class="form-control form-control-sm" placeholder="Search by name"
+            value="{{ request.args.get('line_name','') }}">
         </div>
 
         <div class="col-lg-1 col-6">
           <label class="form-label mb-1">From</label>
           <input type="date" name="date_from" class="form-control form-control-sm"
-                 value="{{ request.args.get('date_from','') }}">
+            value="{{ request.args.get('date_from','') }}">
         </div>
 
         <div class="col-lg-1 col-6">
           <label class="form-label mb-1">To</label>
           <input type="date" name="date_to" class="form-control form-control-sm"
-                 value="{{ request.args.get('date_to','') }}">
+            value="{{ request.args.get('date_to','') }}">
         </div>
 
         <div class="col-12 text-end">
@@ -117,18 +115,18 @@
   {# preserved QS for exports #}
   {% set qs = namespace(pairs=[]) %}
   {% for k, v in request.args.items() %}
-    {% set _ = qs.pairs.append(k ~ '=' ~ (v|urlencode)) %}
+  {% set _ = qs.pairs.append(k ~ '=' ~ (v|urlencode)) %}
   {% endfor %}
   {% set preserved = qs.pairs|join('&') %}
 
   {# Download buttons (left) #}
   <div class="d-flex justify-content-start align-items-center mb-2 gap-2">
     <a class="btn btn-primary btn-sm"
-       href="{{ url_for('pipeline.export_csv') }}{% if preserved %}?{{ preserved }}{% endif %}">
+      href="{{ url_for('pipeline.export_csv') }}{% if preserved %}?{{ preserved }}{% endif %}">
       <i class="fa fa-file-csv me-1"></i> Download CSV
     </a>
     <a class="btn btn-primary btn-sm"
-       href="{{ url_for('pipeline.export_xlsx') }}{% if preserved %}?{{ preserved }}{% endif %}">
+      href="{{ url_for('pipeline.export_xlsx') }}{% if preserved %}?{{ preserved }}{% endif %}">
       <i class="fa fa-file-excel me-1"></i> Download Excel
     </a>
   </div>
@@ -137,14 +135,12 @@
   <div class="mb-2 page-size">
     <form method="get" class="d-inline">
       {% for k, v in request.args.items() if k not in ['per_page', 'page'] %}
-        <input type="hidden" name="{{ k }}" value="{{ v }}">
+      <input type="hidden" name="{{ k }}" value="{{ v }}">
       {% endfor %}
-      <select name="per_page"
-              class="form-select form-select-sm w-auto d-inline-block"
-              onchange="this.form.submit()"
-              aria-label="Rows per page">
+      <select name="per_page" class="form-select form-select-sm w-auto d-inline-block" onchange="this.form.submit()"
+        aria-label="Rows per page">
         {% for n in allowed_per_page %}
-          <option value="{{ n }}" {{ 'selected' if per_page == n else '' }}>{{ n }}</option>
+        <option value="{{ n }}" {{ 'selected' if per_page==n else '' }}>{{ n }}</option>
         {% endfor %}
       </select>
     </form>
@@ -159,10 +155,7 @@
           <th>Line name</th>
           <th>Tank</th>
           <th>Service area</th>
-          <th>Ø (mm)</th>
-          <th>Length (km)</th>
-          <th>Flow (L/s)</th>
-          <th>Pressure (bar)</th>
+          <th>Diameter (mm)</th>
           <th>Status</th>
           <th>Last supply</th>
           <th class="text-end">Actions</th>
@@ -170,45 +163,33 @@
       </thead>
       <tbody>
         {% for p in pipelines %}
-          <tr>
-            <td>{{ p.id }}</td>
-            <td class="text-truncate" style="max-width: 200px">{{ p.line_name }}</td>
-            <td>{{ p.tank.tank_name if p.tank else p.tank_id }}</td>
-            <td>{{ p.service_area.area_name if p.service_area else p.service_area_id }}</td>
-            <td>{{ p.pipe_diameter_mm or '' }}</td>
-            <td>{{ p.length_km or '' }}</td>
-            <td>{{ p.flow_rate_lps or '' }}</td>
-            <td>{{ p.pressure_bar or '' }}</td>
-            <td>{{ p.status or '' }}</td>
-            <td>{{ p.last_supply_date or '' }}</td>
-            <td class="text-end text-nowrap">
-              <button class="btn btn-edit"
-                      data-bs-toggle="modal" data-bs-target="#pipelineModal"
-                      data-mode="edit"
-                      data-id="{{ p.id }}"
-                      data-tank_id="{{ p.tank_id }}"
-                      data-service_area_id="{{ p.service_area_id }}"
-                      data-line_name="{{ p.line_name }}"
-                      data-pipe_diameter_mm="{{ p.pipe_diameter_mm or '' }}"
-                      data-length_km="{{ p.length_km or '' }}"
-                      data-flow_rate_lps="{{ p.flow_rate_lps or '' }}"
-                      data-pressure_bar="{{ p.pressure_bar or '' }}"
-                      data-status="{{ p.status or '' }}"
-                      data-last_supply_date="{{ p.last_supply_date or '' }}"
-                      data-remarks="{{ p.remarks or '' }}">
-                Edit
-              </button>
+        <tr>
+          <td>{{ p.id }}</td>
+          <td class="text-truncate" style="max-width: 200px">{{ p.line_name }}</td>
+          <td>{{ p.tank.tank_name if p.tank else p.tank_id }}</td>
+          <td>{{ p.service_area.area_name if p.service_area else p.service_area_id }}</td>
+          <td>{{ p.pipe_diameter_mm or '' }}</td>
+          <td>{{ p.status or '' }}</td>
+          <td>{{ p.last_supply_date or '' }}</td>
+          <td class="text-end text-nowrap">
+            <button class="btn btn-edit" data-bs-toggle="modal" data-bs-target="#pipelineModal" data-mode="edit"
+              data-id="{{ p.id }}" data-tank_id="{{ p.tank_id }}" data-service_area_id="{{ p.service_area_id }}"
+              data-line_name="{{ p.line_name }}" data-pipe_diameter_mm="{{ p.pipe_diameter_mm or '' }}"
+              data-status="{{ p.status or '' }}" data-last_supply_date="{{ p.last_supply_date or '' }}"
+              data-remarks="{{ p.remarks or '' }}">
+              Edit
+            </button>
 
-              <form method="POST" action="{{ url_for('pipeline.delete_pipeline', pipeline_id=p.id) }}"
-                    class="d-inline delete-form">
-                <button type="button" class="btn btn-delete btn-confirm-delete">Delete</button>
-              </form>
-            </td>
-          </tr>
+            <form method="POST" action="{{ url_for('pipeline.delete_pipeline', pipeline_id=p.id) }}"
+              class="d-inline delete-form">
+              <button type="button" class="btn btn-delete btn-confirm-delete">Delete</button>
+            </form>
+          </td>
+        </tr>
         {% else %}
-          <tr>
-            <td colspan="11" class="text-center text-muted">No pipelines yet</td>
-          </tr>
+        <tr>
+          <td colspan="8" class="text-center text-muted">No pipelines yet</td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>
@@ -220,14 +201,18 @@
     <ul class="pagination pagination-sm justify-content-end mb-0">
       {% set keep = namespace(pairs=[]) %}
       {% for k, v in request.args.items() if k not in ['page', 'per_page'] %}
-        {% set _ = keep.pairs.append(k ~ '=' ~ (v|urlencode)) %}
+      {% set _ = keep.pairs.append(k ~ '=' ~ (v|urlencode)) %}
       {% endfor %}
       {% set keep_qs = keep.pairs|join('&') %}
 
-      {% set first_href = url_for('pipeline.list_pipelines') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=1&per_page=' ~ per_page %}
-      {% set prev_href  = url_for('pipeline.list_pipelines') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ (pagination.prev_num or 1) ~ '&per_page=' ~ per_page %}
-      {% set next_href  = url_for('pipeline.list_pipelines') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ (pagination.next_num or pagination.pages) ~ '&per_page=' ~ per_page %}
-      {% set last_href  = url_for('pipeline.list_pipelines') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ pagination.pages ~ '&per_page=' ~ per_page %}
+      {% set first_href = url_for('pipeline.list_pipelines') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~
+      'page=1&per_page=' ~ per_page %}
+      {% set prev_href = url_for('pipeline.list_pipelines') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~
+      (pagination.prev_num or 1) ~ '&per_page=' ~ per_page %}
+      {% set next_href = url_for('pipeline.list_pipelines') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~
+      (pagination.next_num or pagination.pages) ~ '&per_page=' ~ per_page %}
+      {% set last_href = url_for('pipeline.list_pipelines') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~
+      pagination.pages ~ '&per_page=' ~ per_page %}
 
       <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
         <a class="page-link" href="{{ first_href }}">First</a>
@@ -239,10 +224,11 @@
       {% set start = max(1, pagination.page - 2) %}
       {% set end = min(pagination.pages, pagination.page + 2) %}
       {% for p in range(start, end + 1) %}
-        {% set p_href = url_for('pipeline.list_pipelines') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ p ~ '&per_page=' ~ per_page %}
-        <li class="page-item {{ 'active' if p == pagination.page }}">
-          <a class="page-link" href="{{ p_href }}">{{ p }}</a>
-        </li>
+      {% set p_href = url_for('pipeline.list_pipelines') ~ '?' ~ (keep_qs ~ '&' if keep_qs else '') ~ 'page=' ~ p ~
+      '&per_page=' ~ per_page %}
+      <li class="page-item {{ 'active' if p == pagination.page }}">
+        <a class="page-link" href="{{ p_href }}">{{ p }}</a>
+      </li>
       {% endfor %}
 
       <li class="page-item {{ 'disabled' if not pagination.has_next }}">
@@ -271,9 +257,9 @@
             <div class="col-md-6">
               <label class="form-label">Tank</label>
               <select name="tank_id" class="form-select form-select-sm">
-                <option value="">— choose tank —</option>
+                <option value="">choose tank </option>
                 {% for t in active_tanks %}
-                  <option value="{{ t.id }}">{{ t.tank_name }}</option>
+                <option value="{{ t.id }}">{{ t.tank_name }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -281,9 +267,9 @@
             <div class="col-md-6">
               <label class="form-label">Service area</label>
               <select name="service_area_id" class="form-select form-select-sm">
-                <option value="">— choose area —</option>
+                <option value="">choose area </option>
                 {% for a in service_areas %}
-                  <option value="{{ a.id }}">{{ a.area_name }} ({{ a.area_code }})</option>
+                <option value="{{ a.id }}">{{ a.area_name }} ({{ a.area_code }})</option>
                 {% endfor %}
               </select>
             </div>
@@ -299,25 +285,10 @@
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Length (km)</label>
-              <input name="length_km" type="number" step="0.001" class="form-control form-control-sm" required>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Flow (L/s)</label>
-              <input name="flow_rate_lps" type="number" step="0.001" class="form-control form-control-sm">
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Pressure (bar)</label>
-              <input name="pressure_bar" type="number" step="0.01" class="form-control form-control-sm">
-            </div>
-
-            <div class="col-md-6">
               <label class="form-label">Status</label>
               <select name="status" class="form-select form-select-sm">
                 {% for s in status_options %}
-                  <option value="{{ s }}" {{ 'selected' if s=='Active' else '' }}>{{ s }}</option>
+                <option value="{{ s }}" {{ 'selected' if s=='Active' else '' }}>{{ s }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -345,96 +316,93 @@
 {% endblock %}
 
 {% block extra_scripts %}
-  {{ super() }}
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      /* ---------- Modal: Create / Edit ---------- */
-      const modalEl = document.getElementById('pipelineModal');
-      modalEl.addEventListener('show.bs.modal', (event) => {
-        const btn = event.relatedTarget;
-        const form = document.getElementById('pipelineForm');
-        const title = document.getElementById('pipelineModalLabel');
-        form.reset();
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    /* ---------- Modal: Create / Edit ---------- */
+    const modalEl = document.getElementById('pipelineModal');
+    modalEl.addEventListener('show.bs.modal', (event) => {
+      const btn = event.relatedTarget;
+      const form = document.getElementById('pipelineForm');
+      const title = document.getElementById('pipelineModalLabel');
+      form.reset();
 
-        if (btn?.dataset.mode === 'edit') {
-          title.textContent = 'Edit Pipeline';
-          const id = btn.dataset.id;
-          form.action = "{{ url_for('pipeline.edit_pipeline', pipeline_id=0) }}".replace('0', id);
+      if (btn?.dataset.mode === 'edit') {
+        title.textContent = 'Edit Pipeline';
+        const id = btn.dataset.id;
+        form.action = "{{ url_for('pipeline.edit_pipeline', pipeline_id=0) }}".replace('0', id);
 
-          if (btn.dataset.tank_id) form.querySelector('select[name=\"tank_id\"]').value = btn.dataset.tank_id;
-          if (btn.dataset.service_area_id) form.querySelector('select[name=\"service_area_id\"]').value = btn.dataset.service_area_id;
+        if (btn.dataset.tank_id) form.querySelector('select[name=\"tank_id\"]').value = btn.dataset.tank_id;
+        if (btn.dataset.service_area_id) form.querySelector('select[name=\"service_area_id\"]').value = btn.dataset.service_area_id;
 
-          form.line_name.value = btn.dataset.line_name || '';
-          form.pipe_diameter_mm.value = btn.dataset.pipe_diameter_mm || '';
-          form.length_km.value = btn.dataset.length_km || '';
-          form.flow_rate_lps.value = btn.dataset.flow_rate_lps || '';
-          form.pressure_bar.value = btn.dataset.pressure_bar || '';
-          if (btn.dataset.status) form.querySelector('select[name=\"status\"]').value = btn.dataset.status;
-          form.last_supply_date.value = btn.dataset.last_supply_date || '';
-          form.remarks.value = btn.dataset.remarks || '';
-        } else {
-          title.textContent = 'New Pipeline';
-          form.action = "{{ url_for('pipeline.create_pipeline') }}";
-        }
-      });
+        form.line_name.value = btn.dataset.line_name || '';
+        form.pipe_diameter_mm.value = btn.dataset.pipe_diameter_mm || '';
+        if (btn.dataset.status) form.querySelector('select[name=\"status\"]').value = btn.dataset.status;
+        form.last_supply_date.value = btn.dataset.last_supply_date || '';
+        form.remarks.value = btn.dataset.remarks || '';
+      } else {
+        title.textContent = 'New Pipeline';
+        form.action = "{{ url_for('pipeline.create_pipeline') }}";
+      }
+    });
 
-      /* ---------- SweetAlert2 Delete Confirm ---------- */
-      document.querySelectorAll(".btn-confirm-delete").forEach(btn => {
-        btn.addEventListener("click", () => {
-          const form = btn.closest(".delete-form");
-          Swal.fire({
-            title: "Are you sure?",
-            text: "This action cannot be undone!",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#2eaadf",
-            cancelButtonColor: "#d33",
-            confirmButtonText: "Yes, delete it!",
-            cancelButtonText: "Cancel"
-          }).then((result) => {
-            if (result.isConfirmed) form.submit();
-          });
+    /* ---------- SweetAlert2 Delete Confirm ---------- */
+    document.querySelectorAll(".btn-confirm-delete").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const form = btn.closest(".delete-form");
+        Swal.fire({
+          title: "Are you sure?",
+          text: "This action cannot be undone!",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonColor: "#2eaadf",
+          cancelButtonColor: "#d33",
+          confirmButtonText: "Yes, delete it!",
+          cancelButtonText: "Cancel"
+        }).then((result) => {
+          if (result.isConfirmed) form.submit();
         });
       });
-
-      /* ---------- Filters: auto-apply + counter + chevron ---------- */
-      const filtersForm = document.getElementById('filtersForm');
-      const collapseEl = document.getElementById('filtersCollapse');
-      const chevron = document.getElementById('filter-chevron');
-      const countEl = document.getElementById('filter-active-count');
-
-      function activeCount() {
-        const params = new FormData(filtersForm);
-        let c = 0;
-        if ((params.get('tank_id') || '').trim()) c++;
-        if ((params.get('service_area_id') || '').trim()) c++;
-        if ((params.get('status') || '').trim()) c++;
-        if ((params.get('line_name') || '').trim()) c++;
-        if ((params.get('date_from') || '').trim()) c++;
-        if ((params.get('date_to') || '').trim()) c++;
-        return c;
-      }
-      function updateCount() { countEl.textContent = activeCount(); }
-
-      // Auto submit on selects + text + dates (debounce for text)
-      filtersForm.querySelectorAll('select, input[type=\"date\"]').forEach(el => {
-        el.addEventListener('change', () => { updateCount(); filtersForm.submit(); });
-      });
-      const ln = filtersForm.querySelector('input[name=\"line_name\"]');
-      let t;
-      ln.addEventListener('input', () => {
-        clearTimeout(t);
-        t = setTimeout(() => { updateCount(); filtersForm.submit(); }, 400);
-      });
-      ln.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); updateCount(); filtersForm.submit(); }
-      });
-
-      // Chevron rotation
-      collapseEl.addEventListener('shown.bs.collapse', () => { chevron.style.transform = 'rotate(180deg)'; });
-      collapseEl.addEventListener('hidden.bs.collapse', () => { chevron.style.transform = 'rotate(0deg)'; });
-      if (collapseEl.classList.contains('show')) { chevron.style.transform = 'rotate(180deg)'; }
     });
-  </script>
+
+    /* ---------- Filters: auto-apply + counter + chevron ---------- */
+    const filtersForm = document.getElementById('filtersForm');
+    const collapseEl = document.getElementById('filtersCollapse');
+    const chevron = document.getElementById('filter-chevron');
+    const countEl = document.getElementById('filter-active-count');
+
+    function activeCount() {
+      const params = new FormData(filtersForm);
+      let c = 0;
+      if ((params.get('tank_id') || '').trim()) c++;
+      if ((params.get('service_area_id') || '').trim()) c++;
+      if ((params.get('status') || '').trim()) c++;
+      if ((params.get('line_name') || '').trim()) c++;
+      if ((params.get('date_from') || '').trim()) c++;
+      if ((params.get('date_to') || '').trim()) c++;
+      return c;
+    }
+    function updateCount() { countEl.textContent = activeCount(); }
+
+    // Auto submit on selects + text + dates (debounce for text)
+    filtersForm.querySelectorAll('select, input[type=\"date\"]').forEach(el => {
+      el.addEventListener('change', () => { updateCount(); filtersForm.submit(); });
+    });
+    const ln = filtersForm.querySelector('input[name=\"line_name\"]');
+    let t;
+    ln.addEventListener('input', () => {
+      clearTimeout(t);
+      t = setTimeout(() => { updateCount(); filtersForm.submit(); }, 400);
+    });
+    ln.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); updateCount(); filtersForm.submit(); }
+    });
+
+    // Chevron rotation
+    collapseEl.addEventListener('shown.bs.collapse', () => { chevron.style.transform = 'rotate(180deg)'; });
+    collapseEl.addEventListener('hidden.bs.collapse', () => { chevron.style.transform = 'rotate(0deg)'; });
+    if (collapseEl.classList.contains('show')) { chevron.style.transform = 'rotate(180deg)'; }
+  });
+</script>
 {% endblock %}

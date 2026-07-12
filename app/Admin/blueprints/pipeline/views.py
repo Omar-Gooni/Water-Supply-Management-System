@@ -1,4 +1,4 @@
-# app/Admin/blueprints/pipeline/views.py
+﻿# app/Admin/blueprints/pipeline/views.py
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, make_response
 from app.extensions import db
 from datetime import datetime
@@ -102,16 +102,13 @@ def create_pipeline():
         service_area_id  = request.form.get("service_area_id", type=int),
         line_name        = (request.form.get("line_name") or "").strip(),
         pipe_diameter_mm = request.form.get("pipe_diameter_mm") or None,
-        length_km        = request.form.get("length_km") or None,
-        flow_rate_lps    = request.form.get("flow_rate_lps") or None,
-        pressure_bar     = request.form.get("pressure_bar") or None,
         status           = (request.form.get("status") or "Active").strip(),
         last_supply_date = _to_date(request.form.get("last_supply_date")),
         remarks          = request.form.get("remarks") or None,
     )
 
-    if not pl.tank_id or not pl.service_area_id or not pl.line_name or not pl.pipe_diameter_mm or not pl.length_km:
-        flash("Tank, Service Area, Line Name, Pipe Diameter and Length are required.", "danger")
+    if not pl.tank_id or not pl.service_area_id or not pl.line_name or not pl.pipe_diameter_mm :
+        flash("Tank, Service Area, Line Name and Pipe Diameter are required.", "danger")
         return redirect(url_for("pipeline.list_pipelines", **request.args))
 
     db.session.add(pl)
@@ -130,15 +127,12 @@ def edit_pipeline(pipeline_id):
     pl.service_area_id  = request.form.get("service_area_id", type=int)
     pl.line_name        = (request.form.get("line_name") or "").strip()
     pl.pipe_diameter_mm = request.form.get("pipe_diameter_mm") or None
-    pl.length_km        = request.form.get("length_km") or None
-    pl.flow_rate_lps    = request.form.get("flow_rate_lps") or None
-    pl.pressure_bar     = request.form.get("pressure_bar") or None
     pl.status           = (request.form.get("status") or "Active").strip()
     pl.last_supply_date = _to_date(request.form.get("last_supply_date"))
     pl.remarks          = request.form.get("remarks") or None
 
-    if not pl.tank_id or not pl.service_area_id or not pl.line_name or not pl.pipe_diameter_mm or not pl.length_km:
-        flash("Tank, Service Area, Line Name, Pipe Diameter and Length are required.", "danger")
+    if not pl.tank_id or not pl.service_area_id or not pl.line_name or not pl.pipe_diameter_mm :
+        flash("Tank, Service Area, Line Name and Pipe Diameter are required.", "danger")
         return redirect(url_for("pipeline.list_pipelines", **request.args))
 
     db.session.commit()
@@ -165,8 +159,8 @@ def export_csv():
     rows = query.all()
 
     headers = [
-        "ID", "Tank", "Service Area", "Line Name", "Diameter (mm)", "Length (km)",
-        "Flow (L/s)", "Pressure (bar)", "Status", "Last Supply Date", "Remarks"
+        "ID", "Tank", "Service Area", "Line Name", "Diameter (mm)",
+        "Status", "Last Supply Date", "Remarks"
     ]
 
     buf = io.StringIO()
@@ -179,9 +173,6 @@ def export_csv():
             (p.service_area.area_name if p.service_area else p.service_area_id),
             p.line_name or "",
             f"{p.pipe_diameter_mm:.2f}" if p.pipe_diameter_mm is not None else "",
-            f"{p.length_km:.3f}" if p.length_km is not None else "",
-            f"{p.flow_rate_lps:.3f}" if p.flow_rate_lps is not None else "",
-            f"{p.pressure_bar:.2f}" if p.pressure_bar is not None else "",
             p.status or "",
             p.last_supply_date.isoformat() if p.last_supply_date else "",
             p.remarks or "",
@@ -205,8 +196,8 @@ def export_xlsx():
     ws.title = "Pipelines"
 
     headers = [
-        "ID", "Tank", "Service Area", "Line Name", "Diameter (mm)", "Length (km)",
-        "Flow (L/s)", "Pressure (bar)", "Status", "Last Supply Date", "Remarks"
+        "ID", "Tank", "Service Area", "Line Name", "Diameter (mm)",
+        "Status", "Last Supply Date", "Remarks"
     ]
     ws.append(headers)
 
@@ -217,9 +208,6 @@ def export_xlsx():
             (p.service_area.area_name if p.service_area else p.service_area_id),
             p.line_name or "",
             float(p.pipe_diameter_mm) if p.pipe_diameter_mm is not None else None,
-            float(p.length_km) if p.length_km is not None else None,
-            float(p.flow_rate_lps) if p.flow_rate_lps is not None else None,
-            float(p.pressure_bar) if p.pressure_bar is not None else None,
             p.status or "",
             p.last_supply_date.isoformat() if p.last_supply_date else None,
             p.remarks or "",
@@ -240,3 +228,6 @@ def export_xlsx():
         download_name=fname,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+

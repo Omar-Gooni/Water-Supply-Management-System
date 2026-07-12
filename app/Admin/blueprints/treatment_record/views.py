@@ -81,14 +81,10 @@ def create_record():
     rec = TreatmentRecord(
         source_id        = request.form.get("source_id", type=int),
         chemical_id      = request.form.get("chemical_id", type=int),
-        treatment_date   = _to_date(request.form.get("treatment_date")),
-        raw_water_m3     = request.form.get("raw_water_m3") or None,
+        treatment_date   = _to_date(request.form.get("treatment_date")) or datetime.now().date(),
         treated_water_m3 = request.form.get("treated_water_m3") or None,
         amount_used      = request.form.get("amount_used") or None,
         unit             = request.form.get("unit", "").strip(),  # required
-        ph_level         = request.form.get("ph_level") or None,
-        turbidity_ntu    = request.form.get("turbidity_ntu") or None,
-        chlorine_mgL     = request.form.get("chlorine_mgL") or None,
         quality_status   = request.form.get("quality_status") or None,
         operator_name    = request.form.get("operator_name") or None,
         remarks          = request.form.get("remarks") or None,
@@ -112,13 +108,9 @@ def edit_record(rec_id):
     rec.source_id        = request.form.get("source_id", type=int)
     rec.chemical_id      = request.form.get("chemical_id", type=int)
     rec.treatment_date   = _to_date(request.form.get("treatment_date"))
-    rec.raw_water_m3     = request.form.get("raw_water_m3") or None
     rec.treated_water_m3 = request.form.get("treated_water_m3") or None
     rec.amount_used      = request.form.get("amount_used") or None
     rec.unit             = request.form.get("unit", "").strip()
-    rec.ph_level         = request.form.get("ph_level") or None
-    rec.turbidity_ntu    = request.form.get("turbidity_ntu") or None
-    rec.chlorine_mgL     = request.form.get("chlorine_mgL") or None
     rec.quality_status   = request.form.get("quality_status") or None
     rec.operator_name    = request.form.get("operator_name") or None
     rec.remarks          = request.form.get("remarks") or None
@@ -152,9 +144,8 @@ def export_csv():
 
     headers = [
         "ID", "Treatment Date", "Source", "Chemical",
-        "Raw water (m3)", "Treated water (m3)",
+        "Treated water (m3)",
         "Amount used", "Unit",
-        "pH", "Turbidity (NTU)", "Chlorine (mg/L)",
         "Quality status", "Operator", "Remarks"
     ]
 
@@ -168,13 +159,9 @@ def export_csv():
             r.treatment_date.isoformat() if r.treatment_date else "",
             (r.source.source_name if r.source else r.source_id) or "",
             (r.chemical.chemical_name if r.chemical else r.chemical_id) or "",
-            f"{r.raw_water_m3:.2f}" if r.raw_water_m3 is not None else "",
             f"{r.treated_water_m3:.2f}" if r.treated_water_m3 is not None else "",
             f"{r.amount_used:.3f}" if r.amount_used is not None else "",
             r.unit or "",
-            f"{r.ph_level:.2f}" if r.ph_level is not None else "",
-            f"{r.turbidity_ntu:.2f}" if r.turbidity_ntu is not None else "",
-            f"{r.chlorine_mgL:.3f}" if r.chlorine_mgL is not None else "",
             r.quality_status or "",
             r.operator_name or "",
             r.remarks or "",
@@ -199,9 +186,8 @@ def export_xlsx():
 
     headers = [
         "ID", "Treatment Date", "Source", "Chemical",
-        "Raw water (m3)", "Treated water (m3)",
+        "Treated water (m3)",
         "Amount used", "Unit",
-        "pH", "Turbidity (NTU)", "Chlorine (mg/L)",
         "Quality status", "Operator", "Remarks"
     ]
     ws.append(headers)
@@ -212,13 +198,9 @@ def export_xlsx():
             r.treatment_date.isoformat() if r.treatment_date else None,
             (r.source.source_name if r.source else r.source_id) or None,
             (r.chemical.chemical_name if r.chemical else r.chemical_id) or None,
-            float(r.raw_water_m3) if r.raw_water_m3 is not None else None,
             float(r.treated_water_m3) if r.treated_water_m3 is not None else None,
             float(r.amount_used) if r.amount_used is not None else None,
             r.unit or None,
-            float(r.ph_level) if r.ph_level is not None else None,
-            float(r.turbidity_ntu) if r.turbidity_ntu is not None else None,
-            float(r.chlorine_mgL) if r.chlorine_mgL is not None else None,
             r.quality_status or None,
             r.operator_name or None,
             r.remarks or None,

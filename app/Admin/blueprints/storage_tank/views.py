@@ -1,4 +1,4 @@
-# app/Admin/blueprints/storage_tank/views.py
+﻿# app/Admin/blueprints/storage_tank/views.py
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, make_response
 from app.extensions import db
 from datetime import datetime
@@ -85,7 +85,7 @@ def list_tanks():
         pagination=pagination,
         per_page=per_page,
         allowed_per_page=sorted(allowed_per_page),
-        safe_sources=safe_sources,   # <— use in template dropdowns
+        safe_sources=safe_sources,   # <â€” use in template dropdowns
     )
 
 # ---------- create ----------
@@ -99,11 +99,6 @@ def create_tank():
         source_id        = source_id,
         tank_name        = (request.form.get("tank_name") or "").strip(),
         capacity_m3      = request.form.get("capacity_m3") or None,
-        current_level_m3 = request.form.get("current_level_m3") or None,
-        last_inflow_m3   = request.form.get("last_inflow_m3") or None,
-        last_inflow_date = _to_date(request.form.get("last_inflow_date")),
-        last_outflow_m3  = request.form.get("last_outflow_m3") or None,
-        last_outflow_date= _to_date(request.form.get("last_outflow_date")),
         status           = request.form.get("status") or "Active",
         remarks          = request.form.get("remarks") or None,
     )
@@ -134,11 +129,6 @@ def edit_tank(tank_id):
     tank.source_id        = source_id
     tank.tank_name        = (request.form.get("tank_name") or "").strip()
     tank.capacity_m3      = request.form.get("capacity_m3") or None
-    tank.current_level_m3 = request.form.get("current_level_m3") or None
-    tank.last_inflow_m3   = request.form.get("last_inflow_m3") or None
-    tank.last_inflow_date = _to_date(request.form.get("last_inflow_date"))
-    tank.last_outflow_m3  = request.form.get("last_outflow_m3") or None
-    tank.last_outflow_date= _to_date(request.form.get("last_outflow_date"))
     tank.status           = request.form.get("status") or "Active"
     tank.remarks          = request.form.get("remarks") or None
 
@@ -189,11 +179,6 @@ def export_csv():
             t.source.source_name if t.source else t.source_id,
             t.tank_name or "",
             f"{t.capacity_m3:.2f}" if t.capacity_m3 is not None else "",
-            f"{t.current_level_m3:.2f}" if t.current_level_m3 is not None else "",
-            f"{t.last_inflow_m3:.2f}" if t.last_inflow_m3 is not None else "",
-            t.last_inflow_date.isoformat() if t.last_inflow_date else "",
-            f"{t.last_outflow_m3:.2f}" if t.last_outflow_m3 is not None else "",
-            t.last_outflow_date.isoformat() if t.last_outflow_date else "",
             t.status or "",
             t.remarks or "",
         ])
@@ -216,8 +201,8 @@ def export_xlsx():
     ws.title = "Storage Tanks"
 
     headers = [
-        "ID", "Source", "Tank Name", "Capacity (m³)", "Current Level (m³)",
-        "Last Inflow (m³)", "Last Inflow Date", "Last Outflow (m³)",
+        "ID", "Source", "Tank Name", "Capacity (mÂ³)", "Current Level (mÂ³)",
+        "Last Inflow (mÂ³)", "Last Inflow Date", "Last Outflow (mÂ³)",
         "Last Outflow Date", "Status", "Remarks"
     ]
     ws.append(headers)
@@ -228,11 +213,6 @@ def export_xlsx():
             (t.source.source_name if t.source else t.source_id),
             t.tank_name or "",
             float(t.capacity_m3) if t.capacity_m3 is not None else None,
-            float(t.current_level_m3) if t.current_level_m3 is not None else None,
-            float(t.last_inflow_m3) if t.last_inflow_m3 is not None else None,
-            t.last_inflow_date.isoformat() if t.last_inflow_date else None,
-            float(t.last_outflow_m3) if t.last_outflow_m3 is not None else None,
-            t.last_outflow_date.isoformat() if t.last_outflow_date else None,
             t.status or "",
             t.remarks or "",
         ])
@@ -252,3 +232,5 @@ def export_xlsx():
         download_name=fname,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+

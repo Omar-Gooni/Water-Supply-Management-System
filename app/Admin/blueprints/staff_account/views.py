@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+﻿from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from sqlalchemy import or_
 
 from app.extensions import db
@@ -32,7 +32,6 @@ def _apply_filters(q):
             or_(
                 User.username.ilike(like),
                 User.full_name.ilike(like),
-                User.job_title.ilike(like),
                 User.phone.ilike(like),
             )
         )
@@ -49,7 +48,6 @@ def _form_values():
     return {
         "full_name": (request.form.get("full_name") or "").strip(),
         "username": (request.form.get("username") or "").strip(),
-        "job_title": (request.form.get("job_title") or "").strip(),
         "phone": (request.form.get("phone") or "").strip(),
         "service_area_id": request.form.get("service_area_id", type=int),
         "role": _clean_role(request.form.get("role")),
@@ -112,8 +110,8 @@ def create_staff():
         flash("Passwords do not match.", "danger")
         return _redirect_list()
 
-    if form["role"] == "Staff" and (not form["job_title"] or not form["phone"] or not form["service_area_id"]):
-        flash("Staff users require job title, phone and service area.", "danger")
+    if form["role"] == "Staff" and (not form["phone"] or not form["service_area_id"]):
+        flash("Staff users require phone and service area.", "danger")
         return _redirect_list()
 
     if form["service_area_id"]:
@@ -129,7 +127,6 @@ def create_staff():
     user = User(
         full_name=form["full_name"],
         username=form["username"],
-        job_title=form["job_title"] or None,
         phone=form["phone"] or None,
         service_area_id=form["service_area_id"] if form["role"] == "Staff" else (form["service_area_id"] or None),
         role=form["role"],
@@ -157,8 +154,8 @@ def edit_staff(user_id):
         flash("Passwords do not match.", "danger")
         return _redirect_list()
 
-    if form["role"] == "Staff" and (not form["job_title"] or not form["phone"] or not form["service_area_id"]):
-        flash("Staff users require job title, phone and service area.", "danger")
+    if form["role"] == "Staff" and (not form["phone"] or not form["service_area_id"]):
+        flash("Staff users require phone and service area.", "danger")
         return _redirect_list()
 
     if form["service_area_id"]:
@@ -180,7 +177,6 @@ def edit_staff(user_id):
 
     user.full_name = form["full_name"]
     user.username = form["username"]
-    user.job_title = form["job_title"] or None
     user.phone = form["phone"] or None
     user.role = form["role"]
     user.service_area_id = form["service_area_id"] if form["role"] == "Staff" else (form["service_area_id"] or None)
@@ -220,3 +216,6 @@ def delete_staff(user_id):
     db.session.commit()
     flash("User deleted.", "info")
     return _redirect_list()
+
+
+

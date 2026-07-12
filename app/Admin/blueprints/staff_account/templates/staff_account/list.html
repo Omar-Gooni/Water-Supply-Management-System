@@ -1,4 +1,4 @@
-{% extends 'layouts/base.html' %}
+﻿{% extends 'layouts/base.html' %}
 
 {% block title %}User Management{% endblock %}
 
@@ -235,7 +235,7 @@
         <form id="filtersForm" method="GET" action="{{ url_for('staff_account.list_staff') }}" class="row g-3 align-items-end">
           <div class="col-lg-4 col-sm-6">
             <label class="filter-label">Search</label>
-            <input id="qInput" type="text" name="q" class="form-control" placeholder="Full name / Username / Job title / Phone" value="{{ request.args.get('q','') }}">
+            <input id="qInput" type="text" name="q" class="form-control" placeholder="Full name / Username / Phone" value="{{ request.args.get('q','') }}">
           </div>
 
           <div class="col-lg-3 col-sm-6">
@@ -297,7 +297,6 @@
             <th>Full Name</th>
             <th>Username</th>
             <th>Role</th>
-            <th>Job Title</th>
             <th>Service Area</th>
             <th>Phone</th>
             <th>Created</th>
@@ -316,7 +315,6 @@
                 {% set role_key = (user.role or 'Counter')|lower %}
                 <span class="role-badge role-{{ role_key }}">{{ user.role or 'Counter' }}</span>
               </td>
-              <td>{{ user.job_title or '-' }}</td>
               <td>{{ user.service_area.area_name if user.service_area else '-' }}</td>
               <td>{{ user.phone or '-' }}</td>
               <td>{{ user.created_date or '' }}</td>
@@ -328,7 +326,6 @@
                         data-full-name="{{ user.full_name or '' }}"
                         data-username="{{ user.username }}"
                         data-role="{{ user.role or 'Counter' }}"
-                        data-job-title="{{ user.job_title or '' }}"
                         data-service-area-id="{{ user.service_area_id or '' }}"
                         data-phone="{{ user.phone or '' }}">
                   Edit
@@ -340,7 +337,7 @@
             </tr>
           {% else %}
             <tr>
-              <td colspan="9">
+              <td colspan="8">
                 <div class="empty-state">
                   <div class="mb-2"><i class="fa-solid fa-users-gear fa-2x text-secondary"></i></div>
                   <div class="fw-semibold text-dark">No users found</div>
@@ -419,10 +416,6 @@
               </select>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Job Title</label>
-              <input name="job_title" class="form-control form-control-sm" placeholder="Optional for Admin / Counter">
-            </div>
-            <div class="col-md-6">
               <label class="form-label">Service Area</label>
               <select name="service_area_id" class="form-select form-select-sm">
                 <option value="">Optional</option>
@@ -436,7 +429,7 @@
               <input name="phone" class="form-control form-control-sm" placeholder="Optional for Admin / Counter">
             </div>
           </div>
-          <div class="form-text mt-2">Staff users should have a job title, phone, and service area.</div>
+          <div class="form-text mt-2">Staff users should have a phone and service area.</div>
         </div>
 
         <div class="modal-footer">
@@ -459,7 +452,7 @@
       const title = document.getElementById('userModalLabel');
       const roleSelect = form.querySelector('[name="role"]');
       const serviceArea = form.querySelector('[name="service_area_id"]');
-      const jobTitle = form.querySelector('[name="job_title"]');
+
       const phone = form.querySelector('[name="phone"]');
       const password = form.querySelector('[name="password"]');
       const confirmPassword = form.querySelector('[name="confirm_password"]');
@@ -467,7 +460,7 @@
       function syncRoleRequirements() {
         const isStaff = roleSelect.value === 'Staff';
         serviceArea.required = isStaff;
-        jobTitle.required = isStaff;
+
         phone.required = isStaff;
       }
 
@@ -489,7 +482,7 @@
           form.querySelector('[name="full_name"]').value = btn.dataset.fullName || '';
           form.querySelector('[name="username"]').value = btn.dataset.username || '';
           roleSelect.value = btn.dataset.role || '';
-          jobTitle.value = btn.dataset.jobTitle || '';
+
           phone.value = btn.dataset.phone || '';
           serviceArea.value = btn.dataset.serviceAreaId || '';
           password.required = false;
@@ -573,3 +566,9 @@
     });
   </script>
 {% endblock %}
+
+
+
+
+
+

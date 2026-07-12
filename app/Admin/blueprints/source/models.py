@@ -10,8 +10,7 @@ class WaterSource(db.Model):
     location = db.Column(db.String(120), nullable=False)
     capacity_m3_day = db.Column(db.Numeric(10, 2), nullable=True)   # daily capacity
     status = db.Column(db.String(30), nullable=False, default="Active")  # Active / Inactive / Maintenance
-    last_production_date = db.Column(db.Date, nullable=True, default=None)
-    last_volume_m3 = db.Column(db.Numeric(10, 2), nullable=True)
+   
     remarks = db.Column(db.Text, nullable=True)
 
     def __repr__(self):

@@ -1,4 +1,4 @@
-# app/Admin/blueprints/source/views.py
+﻿# app/Admin/blueprints/source/views.py
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, make_response
 from app.extensions import db
 from .models import WaterSource
@@ -89,8 +89,6 @@ def create_source():
         location=request.form.get("location", "").strip(),
         capacity_m3_day=request.form.get("capacity_m3_day") or None,
         status=request.form.get("status") or "Active",
-        last_production_date=_to_date(request.form.get("last_production_date")),
-        last_volume_m3=request.form.get("last_volume_m3") or None,
         remarks=request.form.get("remarks") or None,
     )
     db.session.add(source)
@@ -110,8 +108,6 @@ def edit_source(source_id):
     source.location = request.form.get("location", "").strip()
     source.capacity_m3_day = request.form.get("capacity_m3_day") or None
     source.status = request.form.get("status") or "Active"
-    source.last_production_date = _to_date(request.form.get("last_production_date"))
-    source.last_volume_m3 = request.form.get("last_volume_m3") or None
     source.remarks = request.form.get("remarks") or None
     db.session.commit()
     flash("Source updated.", "success")
@@ -153,8 +149,6 @@ def export_csv():
             s.location or "",
             f"{s.capacity_m3_day:.2f}" if s.capacity_m3_day is not None else "",
             s.status or "",
-            s.last_production_date.isoformat() if s.last_production_date else "",
-            f"{s.last_volume_m3:.2f}" if s.last_volume_m3 is not None else "",
             s.remarks or "",
         ])
     resp = make_response(buf.getvalue())
@@ -177,7 +171,7 @@ def export_xlsx():
 
     headers = [
         "ID", "Source Name", "Source Type", "Location",
-        "Capacity (m³/day)", "Status", "Last Production Date", "Last Volume (m³)", "Remarks"
+        "Capacity (mÂ³/day)", "Status", "Last Production Date", "Last Volume (mÂ³)", "Remarks"
     ]
     ws.append(headers)
 
@@ -189,8 +183,6 @@ def export_xlsx():
             s.location or "",
             float(s.capacity_m3_day) if s.capacity_m3_day is not None else None,
             s.status or "",
-            s.last_production_date.isoformat() if s.last_production_date else None,
-            float(s.last_volume_m3) if s.last_volume_m3 is not None else None,
             s.remarks or "",
         ])
 
@@ -209,3 +201,5 @@ def export_xlsx():
         download_name=fname,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+

@@ -11,18 +11,11 @@ class TreatmentRecord(db.Model):
 
     # Dates & volumes
     treatment_date    = db.Column(db.Date, nullable=False)
-    raw_water_m3      = db.Column(db.Numeric(12, 2), nullable=True)
     treated_water_m3  = db.Column(db.Numeric(12, 2), nullable=True)
 
     # Chemical usage
     amount_used = db.Column(db.Numeric(12, 3), nullable=True)
     unit        = db.Column(db.String(20), nullable=False)  # kg / L / mg/L
-
-    # Lab readings
-    ph_level       = db.Column(db.Numeric(4, 2), nullable=True)
-    turbidity_ntu  = db.Column(db.Numeric(6, 2), nullable=True)
-    chlorine_mgL   = db.Column(db.Numeric(6, 3), nullable=True)
-
     # Status & metadata
     quality_status = db.Column(db.String(20), nullable=True)  # Safe / Unsafe
     operator_name  = db.Column(db.String(100), nullable=True)
